@@ -8,8 +8,13 @@ import (
 	"time"
 )
 
-var currentScreen = "ui_Boot_Screen"
 var backlightState = 0 // 0 - NORMAL, 1 - DIMMED, 2 - OFF
+
+var (
+	currentScreen   = "ui_Boot_Screen"
+	displayedTexts  = make(map[string]string)
+	screenStateLock = sync.Mutex{}
+)
 
 var (
 	dimTicker *time.Ticker
@@ -21,8 +26,11 @@ const (
 	backlightControlClass string = "/sys/class/backlight/backlight/brightness"
 )
 
+// do not call this function directly, use switchToScreenIfDifferent instead
+// this function is not thread safe
 func switchToScreen(screen string) {
-	_, err := CallDisplayCtrlAction("lv_scr_load", map[string]interface{}{"obj": screen})
+	_, err := CallDisplayCtrlAction("lv_scr_load", map[string]any{"obj": screen})
+
 	if err != nil {
 		displayLogger.Warn().Err(err).Str("screen", screen).Msg("failed to switch to screen")
 		return
@@ -30,18 +38,17 @@ func switchToScreen(screen string) {
 	currentScreen = screen
 }
 
-var displayedTexts = make(map[string]string)
-
 func lvObjSetState(objName string, state string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_set_state", map[string]interface{}{"obj": objName, "state": state})
+	return CallDisplayCtrlAction("lv_obj_set_state", map[string]any{"obj": objName, "state": state})
 }
 
 func lvObjAddFlag(objName string, flag string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_add_flag", map[string]interface{}{"obj": objName, "flag": flag})
+	return CallDisplayCtrlAction("lv_obj_add_flag", map[string]any{"obj": objName, "flag": flag})
 }
 
 func lvObjClearFlag(objName string, flag string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_clear_flag", map[string]interface{}{"obj": objName, "flag": flag})
+	return CallDisplayCtrlAction("lv_obj_clear_flag", map[string]any{"obj": objName, "flag": flag})
+
 }
 
 func lvObjHide(objName string) (*CtrlResponse, error) {
@@ -53,34 +60,38 @@ func lvObjShow(objName string) (*CtrlResponse, error) {
 }
 
 func lvObjSetOpacity(objName string, opacity int) (*CtrlResponse, error) { // nolint:unused
-	return CallDisplayCtrlAction("lv_obj_set_style_opa_layered", map[string]interface{}{"obj": objName, "opa": opacity})
+	return CallDisplayCtrlAction("lv_obj_set_style_opa_layered", map[string]any{"obj": objName, "opa": opacity})
 }
 
 func lvObjFadeIn(objName string, duration uint32) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_fade_in", map[string]interface{}{"obj": objName, "time": duration})
+	return CallDisplayCtrlAction("lv_obj_fade_in", map[string]any{"obj": objName, "time": duration})
 }
 
 func lvObjFadeOut(objName string, duration uint32) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_fade_out", map[string]interface{}{"obj": objName, "time": duration})
+	return CallDisplayCtrlAction("lv_obj_fade_out", map[string]any{"obj": objName, "time": duration})
 }
 
 func lvLabelSetText(objName string, text string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_label_set_text", map[string]interface{}{"obj": objName, "text": text})
+	return CallDisplayCtrlAction("lv_label_set_text", map[string]any{"obj": objName, "text": text})
 }
 
 func lvImgSetSrc(objName string, src string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_img_set_src", map[string]interface{}{"obj": objName, "src": src})
+	return CallDisplayCtrlAction("lv_img_set_src", map[string]any{"obj": objName, "src": src})
 }
 
 func lvDispSetRotation(rotation string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_disp_set_rotation", map[string]interface{}{"rotation": rotation})
+	return CallDisplayCtrlAction("lv_disp_set_rotation", map[string]any{"rotation": rotation})
 }
 
 func lvObjSetStyleBgColor(objName string, color string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_set_style_bg_color", map[string]interface{}{"obj": objName, "color": color})
+	return CallDisplayCtrlAction("lv_obj_set_style_bg_color", map[string]any{"obj": objName, "color": color})
+
 }
 
 func updateLabelIfChanged(objName string, newText string) {
+	screenStateLock.Lock()
+	defer screenStateLock.Unlock()
+
 	if newText != "" && newText != displayedTexts[objName] {
 		_, _ = lvLabelSetText(objName, newText)
 		displayedTexts[objName] = newText
@@ -88,17 +99,22 @@ func updateLabelIfChanged(objName string, newText string) {
 }
 
 func switchToScreenIfDifferent(screenName string) {
+	screenStateLock.Lock()
+	defer screenStateLock.Unlock()
+
 	if currentScreen != screenName {
 		displayLogger.Info().Str("from", currentScreen).Str("to", screenName).Msg("switching screen")
 		switchToScreen(screenName)
 	}
 }
 
-var (
-	cloudBlinkLock    sync.Mutex = sync.Mutex{}
-	cloudBlinkStopped bool
-	cloudBlinkTicker  *time.Ticker
-)
+func clearDisplayState() {
+	screenStateLock.Lock()
+	defer screenStateLock.Unlock()
+
+	displayedTexts = make(map[string]string)
+	currentScreen = "ui_Boot_Screen"
+}
 
 func updateDisplay() {
 	updateLabelIfChanged("Network_Address_IP_Label", networkState.IPv4String())
@@ -124,6 +140,7 @@ func updateDisplay() {
 	} else {
 		_, _ = lvObjSetState("Network", "NO_NETWORK")
 	}
+
 }
 
 var (

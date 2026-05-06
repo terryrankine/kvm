@@ -44,6 +44,11 @@ var defaultUsbGadgetDevices = Devices{
 	MassStorage:   true,
 }
 
+type KeysDownState struct {
+	Modifier byte      `json:"modifier"`
+	Keys     ByteSlice `json:"keys"`
+}
+
 // UsbGadget is a struct that represents a USB gadget.
 type UsbGadget struct {
 	name          string
@@ -63,7 +68,12 @@ type UsbGadget struct {
 	relMouseHidFile *os.File
 	relMouseLock    sync.Mutex
 
-	keyboardState       KeyboardState
+	keyboardState byte          // keyboard latched state (NumLock, CapsLock, ScrollLock, Compose, Kana)
+	keysDownState KeysDownState // keyboard dynamic state (modifier keys and pressed keys)
+
+	kbdAutoReleaseLock   sync.Mutex
+	kbdAutoReleaseTimers map[byte]*time.Timer
+
 	keyboardStateLock   sync.Mutex
 	keyboardStateCtx    context.Context
 	keyboardStateCancel context.CancelFunc
@@ -81,11 +91,13 @@ type UsbGadget struct {
 
 	onKeyboardStateChange *func(state KeyboardState)
 	onHidDeviceMissing    *func(device string, err error)
+	onKeysDownChange      *func(state KeysDownState)
+	onKeepAliveReset      *func()
 
 	log *zerolog.Logger
 
 	logSuppressionCounter map[string]int
-	logLock               sync.Mutex
+	logSuppressionLock    sync.Mutex
 }
 
 const configFSPath = "/sys/kernel/config"
@@ -117,22 +129,24 @@ func newUsbGadget(name string, configMap map[string]gadgetConfigItem, enabledDev
 	keyboardCtx, keyboardCancel := context.WithCancel(context.Background())
 
 	g := &UsbGadget{
-		name:                name,
-		kvmGadgetPath:       path.Join(gadgetPath, name),
-		configC1Path:        path.Join(gadgetPath, name, "configs/c.1"),
-		configMap:           configMap,
-		customConfig:        *config,
-		configLock:          sync.Mutex{},
-		keyboardLock:        sync.Mutex{},
-		absMouseLock:        sync.Mutex{},
-		relMouseLock:        sync.Mutex{},
-		txLock:              sync.Mutex{},
-		keyboardStateCtx:    keyboardCtx,
-		keyboardStateCancel: keyboardCancel,
-		keyboardState:       KeyboardState{},
-		enabledDevices:      *enabledDevices,
-		lastUserInput:       time.Now(),
-		log:                 logger,
+		name:                 name,
+		kvmGadgetPath:        path.Join(gadgetPath, name),
+		configC1Path:         path.Join(gadgetPath, name, "configs/c.1"),
+		configMap:            configMap,
+		customConfig:         *config,
+		configLock:           sync.Mutex{},
+		keyboardLock:         sync.Mutex{},
+		absMouseLock:         sync.Mutex{},
+		relMouseLock:         sync.Mutex{},
+		txLock:               sync.Mutex{},
+		keyboardStateCtx:     keyboardCtx,
+		keyboardStateCancel:  keyboardCancel,
+		keyboardState:        0,
+		keysDownState:        KeysDownState{Modifier: 0, Keys: []byte{0, 0, 0, 0, 0, 0}}, // must be initialized to hidKeyBufferSize (6) zero bytes
+		kbdAutoReleaseTimers: make(map[byte]*time.Timer),
+		enabledDevices:       *enabledDevices,
+		lastUserInput:        time.Now(),
+		log:                  logger,
 
 		strictMode: config.strictMode,
 
@@ -145,4 +159,38 @@ func newUsbGadget(name string, configMap map[string]gadgetConfigItem, enabledDev
 	}
 
 	return g
+}
+
+// Close cleans up resources used by the USB gadget
+func (u *UsbGadget) Close() error {
+	// Cancel keyboard state context
+	if u.keyboardStateCancel != nil {
+		u.keyboardStateCancel()
+	}
+
+	// Stop auto-release timer
+	u.kbdAutoReleaseLock.Lock()
+	for _, timer := range u.kbdAutoReleaseTimers {
+		if timer != nil {
+			timer.Stop()
+		}
+	}
+	u.kbdAutoReleaseTimers = make(map[byte]*time.Timer)
+	u.kbdAutoReleaseLock.Unlock()
+
+	// Close HID files
+	if u.keyboardHidFile != nil {
+		u.keyboardHidFile.Close()
+		u.keyboardHidFile = nil
+	}
+	if u.absMouseHidFile != nil {
+		u.absMouseHidFile.Close()
+		u.absMouseHidFile = nil
+	}
+	if u.relMouseHidFile != nil {
+		u.relMouseHidFile.Close()
+		u.relMouseHidFile = nil
+	}
+
+	return nil
 }

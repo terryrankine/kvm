@@ -25,6 +25,7 @@ type NetworkInterfaceState struct {
 	ipv6Addr      *net.IP
 	ipv6Addresses []IPv6Address
 	ipv6LinkLocal *net.IP
+	ntpAddresses  []*net.IP
 	macAddr       *net.HardwareAddr
 
 	l         *zerolog.Logger
@@ -51,7 +52,7 @@ type NetworkInterfaceOptions struct {
 	DefaultHostname   string
 	OnStateChange     func(state *NetworkInterfaceState)
 	OnInitialCheck    func(state *NetworkInterfaceState)
-	OnDhcpLeaseChange func(lease *udhcpc.Lease)
+	OnDhcpLeaseChange func(lease *udhcpc.Lease, state *NetworkInterfaceState)
 	OnConfigChange    func(config *NetworkConfig)
 	NetworkConfig     *NetworkConfig
 }
@@ -80,6 +81,7 @@ func NewNetworkInterfaceState(opts *NetworkInterfaceOptions) (*NetworkInterfaceS
 		onInitialCheck:  opts.OnInitialCheck,
 		cbConfigChange:  opts.OnConfigChange,
 		config:          opts.NetworkConfig,
+		ntpAddresses:    make([]*net.IP, 0),
 	}
 
 	// create the dhcp client
@@ -93,10 +95,10 @@ func NewNetworkInterfaceState(opts *NetworkInterfaceOptions) (*NetworkInterfaceS
 				opts.Logger.Error().Err(err).Msg("failed to update network state")
 				return
 			}
-
+			_ = s.updateNtpServersFromLease(lease)
 			_ = s.setHostnameIfNotSame()
 
-			opts.OnDhcpLeaseChange(lease)
+			opts.OnDhcpLeaseChange(lease, s)
 		},
 		RequestAddress: s.config.IPv4RequestAddress.String,
 	})
@@ -163,6 +165,27 @@ func (s *NetworkInterfaceState) IPv6String() string {
 		return "..."
 	}
 	return s.ipv6Addr.String()
+}
+
+func (s *NetworkInterfaceState) NtpAddresses() []*net.IP {
+	return s.ntpAddresses
+}
+
+func (s *NetworkInterfaceState) NtpAddressesString() []string {
+	ntpServers := []string{}
+
+	if s != nil {
+		s.l.Debug().Any("s", s).Msg("getting NTP address strings")
+
+		if len(s.ntpAddresses) > 0 {
+			for _, server := range s.ntpAddresses {
+				s.l.Debug().IPAddr("server", *server).Msg("converting NTP address")
+				ntpServers = append(ntpServers, server.String())
+			}
+		}
+	}
+
+	return ntpServers
 }
 
 func (s *NetworkInterfaceState) MAC() *net.HardwareAddr {
@@ -289,6 +312,10 @@ func (s *NetworkInterfaceState) update() (DhcpTargetState, error) {
 			ipv4Addresses = append(ipv4Addresses, addr.IP)
 			ipv4AddressesString = append(ipv4AddressesString, addr.IPNet.String())
 		} else if addr.IP.To16() != nil {
+			if s.config.IPv6Mode.String == "disabled" {
+				continue
+			}
+
 			scopedLogger := s.l.With().Str("ipv6", addr.IP.String()).Logger()
 			// check if it's a link local address
 			if addr.IP.IsLinkLocalUnicast() {
@@ -337,35 +364,37 @@ func (s *NetworkInterfaceState) update() (DhcpTargetState, error) {
 	}
 	s.ipv4Addresses = ipv4AddressesString
 
-	if ipv6LinkLocal != nil {
-		if s.ipv6LinkLocal == nil || s.ipv6LinkLocal.String() != ipv6LinkLocal.String() {
-			scopedLogger := s.l.With().Str("ipv6", ipv6LinkLocal.String()).Logger()
-			if s.ipv6LinkLocal != nil {
-				scopedLogger.Info().
-					Str("old_ipv6", s.ipv6LinkLocal.String()).
-					Msg("IPv6 link local address changed")
-			} else {
-				scopedLogger.Info().Msg("IPv6 link local address found")
+	if s.config.IPv6Mode.String != "disabled" {
+		if ipv6LinkLocal != nil {
+			if s.ipv6LinkLocal == nil || s.ipv6LinkLocal.String() != ipv6LinkLocal.String() {
+				scopedLogger := s.l.With().Str("ipv6", ipv6LinkLocal.String()).Logger()
+				if s.ipv6LinkLocal != nil {
+					scopedLogger.Info().
+						Str("old_ipv6", s.ipv6LinkLocal.String()).
+						Msg("IPv6 link local address changed")
+				} else {
+					scopedLogger.Info().Msg("IPv6 link local address found")
+				}
+				s.ipv6LinkLocal = ipv6LinkLocal
+				changed = true
 			}
-			s.ipv6LinkLocal = ipv6LinkLocal
-			changed = true
 		}
-	}
-	s.ipv6Addresses = ipv6Addresses
+		s.ipv6Addresses = ipv6Addresses
 
-	if len(ipv6Addresses) > 0 {
-		// compare the addresses to see if there's a change
-		if s.ipv6Addr == nil || s.ipv6Addr.String() != ipv6Addresses[0].Address.String() {
-			scopedLogger := s.l.With().Str("ipv6", ipv6Addresses[0].Address.String()).Logger()
-			if s.ipv6Addr != nil {
-				scopedLogger.Info().
-					Str("old_ipv6", s.ipv6Addr.String()).
-					Msg("IPv6 address changed")
-			} else {
-				scopedLogger.Info().Msg("IPv6 address found")
+		if len(ipv6Addresses) > 0 {
+			// compare the addresses to see if there's a change
+			if s.ipv6Addr == nil || s.ipv6Addr.String() != ipv6Addresses[0].Address.String() {
+				scopedLogger := s.l.With().Str("ipv6", ipv6Addresses[0].Address.String()).Logger()
+				if s.ipv6Addr != nil {
+					scopedLogger.Info().
+						Str("old_ipv6", s.ipv6Addr.String()).
+						Msg("IPv6 address changed")
+				} else {
+					scopedLogger.Info().Msg("IPv6 address found")
+				}
+				s.ipv6Addr = &ipv6Addresses[0].Address
+				changed = true
 			}
-			s.ipv6Addr = &ipv6Addresses[0].Address
-			changed = true
 		}
 	}
 
@@ -389,6 +418,25 @@ func (s *NetworkInterfaceState) update() (DhcpTargetState, error) {
 	}
 
 	return dhcpTargetState, nil
+}
+
+func (s *NetworkInterfaceState) updateNtpServersFromLease(lease *udhcpc.Lease) error {
+	if lease != nil && len(lease.NTPServers) > 0 {
+		s.l.Info().Msg("lease found, updating DHCP NTP addresses")
+		s.ntpAddresses = make([]*net.IP, 0, len(lease.NTPServers))
+
+		for _, ntpServer := range lease.NTPServers {
+			if ntpServer != nil {
+				s.l.Info().IPAddr("ntp_server", ntpServer).Msg("NTP server found in lease")
+				s.ntpAddresses = append(s.ntpAddresses, &ntpServer)
+			}
+		}
+	} else {
+		s.l.Info().Msg("no NTP servers found in lease")
+		s.ntpAddresses = make([]*net.IP, 0, len(s.config.TimeSyncNTPServers))
+	}
+
+	return nil
 }
 
 func (s *NetworkInterfaceState) CheckAndUpdateDhcp() error {

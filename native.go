@@ -16,18 +16,18 @@ import (
 var ctrlSocketConn net.Conn
 
 type CtrlAction struct {
-	Action string                 `json:"action"`
-	Seq    int32                  `json:"seq,omitempty"`
-	Params map[string]interface{} `json:"params,omitempty"`
+	Action string         `json:"action"`
+	Seq    int32          `json:"seq,omitempty"`
+	Params map[string]any `json:"params,omitempty"`
 }
 
 type CtrlResponse struct {
-	Seq    int32                  `json:"seq,omitempty"`
-	Error  string                 `json:"error,omitempty"`
-	Errno  int32                  `json:"errno,omitempty"`
-	Result map[string]interface{} `json:"result,omitempty"`
-	Event  string                 `json:"event,omitempty"`
-	Data   json.RawMessage        `json:"data,omitempty"`
+	Seq    int32           `json:"seq,omitempty"`
+	Error  string          `json:"error,omitempty"`
+	Errno  int32           `json:"errno,omitempty"`
+	Result map[string]any  `json:"result,omitempty"`
+	Event  string          `json:"event,omitempty"`
+	Data   json.RawMessage `json:"data,omitempty"`
 }
 
 type EventHandler func(event CtrlResponse)
@@ -43,7 +43,7 @@ var (
 	videoCmdLock = &sync.Mutex{}
 )
 
-func CallCtrlAction(action string, params map[string]interface{}) (*CtrlResponse, error) {
+func CallCtrlAction(action string, params map[string]any) (*CtrlResponse, error) {
 	lock.Lock()
 	defer lock.Unlock()
 	ctrlAction := CtrlAction{
@@ -349,7 +349,7 @@ func ExtractAndRunVideoBin() error {
 func restoreHdmiEdid() {
 	if config.EdidString != "" {
 		videoLogger.Info().Str("edid", config.EdidString).Msg("Restoring HDMI EDID")
-		_, err := CallCtrlAction("set_edid", map[string]interface{}{"edid": config.EdidString})
+		_, err := CallCtrlAction("set_edid", map[string]any{"edid": config.EdidString})
 		if err != nil {
 			videoLogger.Warn().Err(err).Msg("Failed to restore HDMI EDID")
 		}

@@ -1,14 +1,14 @@
-BRANCH    ?= $(shell git rev-parse --abbrev-ref HEAD)
-BUILDDATE ?= $(shell date -u +%FT%T%z)
-BUILDTS   ?= $(shell date -u +%s)
-REVISION  ?= $(shell git rev-parse HEAD)
-VERSION_DEV ?= 0.1.2-dev
-VERSION ?= 0.1.2
+BRANCH    := $(shell git rev-parse --abbrev-ref HEAD)
+BUILDDATE := $(shell date -u +%FT%T%z)
+BUILDTS   := $(shell date -u +%s)
+REVISION  := $(shell git rev-parse HEAD)
+VERSION_DEV := 0.1.2-dev
+VERSION := 0.1.2
 
 PROMETHEUS_TAG := github.com/prometheus/common/version
 KVM_PKG_NAME := kvm
 
-GO_BUILD_ARGS := -tags netgo
+GO_BUILD_ARGS := -tags netgo -tags timetzdata
 GO_RELEASE_BUILD_ARGS := -trimpath $(GO_BUILD_ARGS)
 GO_LDFLAGS := \
   -s -w \
@@ -30,7 +30,22 @@ build_dev:
 		-o $(BIN_DIR)/kvm_app cmd/main.go
 
 frontend:
-	cd ui && npm ci && npm run build:device
+	cd ui && npm ci && npm run build:device && \
+	find ../static/ \
+		-type f \
+		\( -name '*.js' \
+		-o -name '*.css' \
+		-o -name '*.html' \
+		-o -name '*.ico' \
+		-o -name '*.png' \
+		-o -name '*.jpg' \
+		-o -name '*.jpeg' \
+		-o -name '*.gif' \
+		-o -name '*.svg' \
+		-o -name '*.webp' \
+		-o -name '*.woff2' \
+		\) \
+		-exec sh -c 'gzip -9 -kfv {}' \;
 
 build_release: frontend
 	@echo "Building release..."

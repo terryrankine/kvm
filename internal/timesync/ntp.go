@@ -1,6 +1,7 @@
 package timesync
 
 import (
+	"context"
 	"math/rand/v2"
 	"strconv"
 	"time"
@@ -8,22 +9,37 @@ import (
 	"github.com/beevik/ntp"
 )
 
-var defaultNTPServers = []string{
+var defaultNTPServerIPs = []string{
+	// These servers are known by static IP and as such don't need DNS lookups
+	// These are from Google and Cloudflare since if they're down, the internet
+	// is broken anyway
+	"162.159.200.1",      // time.cloudflare.com IPv4
+	"162.159.200.123",    // time.cloudflare.com IPv4
+	"2606:4700:f1::1",    // time.cloudflare.com IPv6
+	"2606:4700:f1::123",  // time.cloudflare.com IPv6
+	"216.239.35.0",       // time.google.com IPv4
+	"216.239.35.4",       // time.google.com IPv4
+	"216.239.35.8",       // time.google.com IPv4
+	"216.239.35.12",      // time.google.com IPv4
+	"2001:4860:4806::",   // time.google.com IPv6
+	"2001:4860:4806:4::", // time.google.com IPv6
+	"2001:4860:4806:8::", // time.google.com IPv6
+	"2001:4860:4806:c::", // time.google.com IPv6
+}
+
+var defaultNTPServerHostnames = []string{
+	// should use something from https://github.com/jauderho/public-ntp-servers
 	"time.apple.com",
 	"time.aws.com",
 	"time.windows.com",
 	"time.google.com",
-	"162.159.200.123",   // time.cloudflare.com IPv4
-	"2606:4700:f1::123", // time.cloudflare.com IPv6
-	"0.pool.ntp.org",
-	"1.pool.ntp.org",
-	"2.pool.ntp.org",
-	"3.pool.ntp.org",
+	"time.cloudflare.com",
+	"pool.ntp.org",
 }
 
-func (t *TimeSync) queryNetworkTime() (now *time.Time, offset *time.Duration) {
-	chunkSize := 4
-	ntpServers := t.ntpServers
+func (t *TimeSync) queryNetworkTime(ntpServers []string) (now *time.Time, offset *time.Duration) {
+	chunkSize := int(t.networkConfig.TimeSyncParallel.ValueOr(4))
+	t.l.Info().Strs("servers", ntpServers).Int("chunkSize", chunkSize).Msg("querying NTP servers")
 
 	// shuffle the ntp servers to avoid always querying the same servers
 	rand.Shuffle(len(ntpServers), func(i, j int) { ntpServers[i], ntpServers[j] = ntpServers[j], ntpServers[i] })
@@ -46,6 +62,10 @@ type ntpResult struct {
 
 func (t *TimeSync) queryMultipleNTP(servers []string, timeout time.Duration) (now *time.Time, offset *time.Duration) {
 	results := make(chan *ntpResult, len(servers))
+
+	_, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	for _, server := range servers {
 		go func(server string) {
 			scopedLogger := t.l.With().
@@ -66,15 +86,25 @@ func (t *TimeSync) queryMultipleNTP(servers []string, timeout time.Duration) (no
 				return
 			}
 
+			if response.IsKissOfDeath() {
+				scopedLogger.Warn().
+					Str("kiss_code", response.KissCode).
+					Msg("ignoring NTP server kiss of death")
+				results <- nil
+				return
+			}
+
+			rtt := float64(response.RTT.Milliseconds())
+
 			// set the last RTT
 			metricNtpServerLastRTT.WithLabelValues(
 				server,
-			).Set(float64(response.RTT.Milliseconds()))
+			).Set(rtt)
 
 			// set the RTT histogram
 			metricNtpServerRttHistogram.WithLabelValues(
 				server,
-			).Observe(float64(response.RTT.Milliseconds()))
+			).Observe(rtt)
 
 			// set the server info
 			metricNtpServerInfo.WithLabelValues(
@@ -91,10 +121,13 @@ func (t *TimeSync) queryMultipleNTP(servers []string, timeout time.Duration) (no
 			scopedLogger.Info().
 				Str("time", now.Format(time.RFC3339)).
 				Str("reference", response.ReferenceString()).
-				Str("rtt", response.RTT.String()).
+				Float64("rtt", rtt).
 				Str("clockOffset", response.ClockOffset.String()).
 				Uint8("stratum", response.Stratum).
 				Msg("NTP server returned time")
+
+			cancel()
+
 			results <- &ntpResult{
 				now:    now,
 				offset: &response.ClockOffset,

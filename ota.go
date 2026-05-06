@@ -111,6 +111,10 @@ func rpcSetUpdateSource(source string) error {
 	return nil
 }
 
+func GetBuiltAppVersion() string {
+	return builtAppVersion
+}
+
 func GetLocalVersion() (systemVersion *semver.Version, appVersion *semver.Version, err error) {
 	appVersion, err = semver.NewVersion(builtAppVersion)
 	if err != nil {
@@ -437,15 +441,11 @@ func fetchUpdateMetadataFromBaseURL(ctx context.Context, baseURL string) (*Remot
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	client := http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			Proxy:               http.ProxyFromEnvironment,
-			TLSHandshakeTimeout: 30 * time.Second,
-			TLSClientConfig: &tls.Config{
-				RootCAs: rootcerts.ServerCertPool(),
-			},
-		},
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = config.NetworkConfig.GetTransportProxyFunc()
+
+	client := &http.Client{
+		Transport: transport,
 	}
 
 	resp, err := client.Do(req)
@@ -750,7 +750,7 @@ func downloadFile(
 	client := http.Client{
 		Timeout: 10 * time.Minute,
 		Transport: &http.Transport{
-			Proxy:               http.ProxyFromEnvironment,
+			Proxy:               config.NetworkConfig.GetTransportProxyFunc(),
 			TLSHandshakeTimeout: 30 * time.Second,
 			TLSClientConfig: &tls.Config{
 				RootCAs: rootcerts.ServerCertPool(),

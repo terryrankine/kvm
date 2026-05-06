@@ -14,6 +14,8 @@ import (
 	"kvm/internal/logging"
 	"kvm/internal/network"
 	"kvm/internal/usbgadget"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 type WakeOnLanDevice struct {
@@ -82,6 +84,7 @@ func (m *KeyboardMacro) Validate() error {
 type Config struct {
 	STUN                 string                 `json:"stun"`
 	JigglerEnabled       bool                   `json:"jiggler_enabled"`
+	JigglerConfig        *JigglerConfig         `json:"jiggler_config"`
 	AutoUpdateEnabled    bool                   `json:"auto_update_enabled"`
 	IncludePreRelease    bool                   `json:"include_pre_release"`
 	UpdateDownloadProxy  string                 `json:"update_download_proxy"`
@@ -190,13 +193,20 @@ var defaultConfig = &Config{
 	KeyboardMacros:       []KeyboardMacro{},
 	DisplayRotation:      "180",
 	TimeZone:             "UTC-8",
-	KeyboardLayout:       "en_US",
+	KeyboardLayout:       "en-US",
 	DisplayMaxBrightness: 64,
 	DisplayDimAfterSec:   120,  // 2 minutes
 	DisplayOffAfterSec:   1800, // 30 minutes
 	TLSMode:              "",
-	ForceHpd:             false, // 默认不强制输出EDID
+	ForceHpd:             false,
 	UsbEnhancedDetection: true,
+	JigglerEnabled:       false,
+	JigglerConfig: &JigglerConfig{
+		InactivityLimitSeconds: 60,
+		JitterPercentage:       25,
+		ScheduleCronTab:        "0 * * * * *",
+		Timezone:               "UTC",
+	},
 	UsbConfig: &usbgadget.Config{
 		VendorId:     "0x1d6b", //The Linux Foundation
 		ProductId:    "0x0104", //Multifunction Composite Gadget
@@ -244,6 +254,21 @@ var (
 	configLock = &sync.Mutex{}
 )
 
+var (
+	configSuccess = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "jetkvm_config_last_reload_successful",
+			Help: "The last configuration load succeeded",
+		},
+	)
+	configSuccessTime = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "jetkvm_config_last_reload_success_timestamp_seconds",
+			Help: "Timestamp of last successful config load",
+		},
+	)
+)
+
 func LoadConfig() {
 	configLock.Lock()
 	defer configLock.Unlock()
@@ -268,6 +293,8 @@ func LoadConfig() {
 	file, err := os.Open(configPath)
 	if err != nil {
 		logger.Debug().Msg("default config file doesn't exist, using default")
+		configSuccess.Set(1.0)
+		configSuccessTime.SetToCurrentTime()
 		return
 	}
 	defer file.Close()
@@ -275,6 +302,7 @@ func LoadConfig() {
 	// load and merge the default config with the user config
 	if err := json.NewDecoder(file).Decode(&loadedConfig); err != nil {
 		logger.Warn().Err(err).Msg("config file JSON parsing failed")
+		configSuccess.Set(0.0)
 		os.Remove(configPath)
 		if _, err := os.Stat(sdConfigPath); err == nil {
 			os.Remove(sdConfigPath)
@@ -299,9 +327,21 @@ func LoadConfig() {
 		loadedConfig.Firewall = defaultConfig.Firewall
 	}
 
+	if loadedConfig.JigglerConfig == nil {
+		loadedConfig.JigglerConfig = defaultConfig.JigglerConfig
+	}
+
+	// fixup old keyboard layout value
+	if loadedConfig.KeyboardLayout == "en_US" {
+		loadedConfig.KeyboardLayout = "en-US"
+	}
+
 	config = &loadedConfig
 
 	logging.GetRootLogger().UpdateLogLevel(config.DefaultLogLevel)
+
+	configSuccess.Set(1.0)
+	configSuccessTime.SetToCurrentTime()
 
 	logger.Info().Str("path", configPath).Msg("config loaded")
 }
@@ -380,6 +420,11 @@ func SaveConfig() error {
 
 	logger.Trace().Str("path", configPath).Msg("Saving config")
 
+	// fixup old keyboard layout value
+	if config.KeyboardLayout == "en_US" {
+		config.KeyboardLayout = "en-US"
+	}
+
 	file, err := os.Create(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
@@ -392,7 +437,13 @@ func SaveConfig() error {
 		return fmt.Errorf("failed to encode config: %w", err)
 	}
 
+	if err := file.Sync(); err != nil {
+		return fmt.Errorf("failed to wite config: %w", err)
+	}
+
+	logger.Info().Str("path", configPath).Msg("config saved")
 	SyncConfigSD(false)
+
 
 	return nil
 }
