@@ -22,18 +22,20 @@ export const useMouseEvents = (
 ) => {
   const [send] = useJsonRpc();
   const [blockWheelEvent, setBlockWheelEvent] = useState(false);
-  const settings = useSettingsStore();
-  const { setMousePosition, setMouseMove } = useMouseStore();
-  const {
-    width: videoWidth,
-    height: videoHeight,
-    clientWidth: displayedWidth,
-    clientHeight: displayedHeight,
-    streamContentX1,
-    streamContentX2,
-    streamContentY1,
-    streamContentY2,
-  } = useVideoStore();
+  const mouseMode = useSettingsStore(s => s.mouseMode);
+  const scrollThrottling = useSettingsStore(s => s.scrollThrottling);
+  // Wrap in a stable object so callers referencing `settings.mouseMode` still work.
+  const settings = { mouseMode, scrollThrottling };
+  const setMousePosition = useMouseStore(s => s.setMousePosition);
+  const setMouseMove = useMouseStore(s => s.setMouseMove);
+  const videoWidth = useVideoStore(s => s.width);
+  const videoHeight = useVideoStore(s => s.height);
+  const displayedWidth = useVideoStore(s => s.clientWidth);
+  const displayedHeight = useVideoStore(s => s.clientHeight);
+  const streamContentX1 = useVideoStore(s => s.streamContentX1);
+  const streamContentX2 = useVideoStore(s => s.streamContentX2);
+  const streamContentY1 = useVideoStore(s => s.streamContentY1);
+  const streamContentY2 = useVideoStore(s => s.streamContentY2);
   const isReinitializingGadget = useHidStore(state => state.isReinitializingGadget);
 
   const calcDelta = (pos: number) => (Math.abs(pos) < 10 ? pos * 2 : pos);
