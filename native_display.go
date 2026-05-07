@@ -21,23 +21,28 @@ var displaySocketConn net.Conn
 var displayOngoingRequests = make(map[int32]chan *CtrlResponse)
 
 var displayLock = &sync.Mutex{}
+var displayRequestsLock = &sync.RWMutex{}
 
 func CallDisplayCtrlAction(action string, params map[string]interface{}) (*CtrlResponse, error) {
 	displayLock.Lock()
-	defer displayLock.Unlock()
 	ctrlAction := CtrlAction{
 		Action: action,
 		Seq:    seq,
 		Params: params,
 	}
 
-	responseChan := make(chan *CtrlResponse)
+	responseChan := make(chan *CtrlResponse, 1)
+	displayRequestsLock.Lock()
 	displayOngoingRequests[seq] = responseChan
+	displayRequestsLock.Unlock()
 	seq++
 
 	jsonData, err := json.Marshal(ctrlAction)
 	if err != nil {
+		displayRequestsLock.Lock()
 		delete(displayOngoingRequests, ctrlAction.Seq)
+		displayRequestsLock.Unlock()
+		displayLock.Unlock()
 		return nil, fmt.Errorf("error marshaling ctrl action: %w", err)
 	}
 
@@ -49,13 +54,20 @@ func CallDisplayCtrlAction(action string, params map[string]interface{}) (*CtrlR
 
 	err = WriteDisplayCtrlMessage(jsonData)
 	if err != nil {
+		displayRequestsLock.Lock()
 		delete(displayOngoingRequests, ctrlAction.Seq)
+		displayRequestsLock.Unlock()
+		displayLock.Unlock()
 		return nil, ErrorfL(&scopedLogger, "error writing display ctrl message", err)
 	}
 
+	displayLock.Unlock()
+
 	select {
 	case response := <-responseChan:
-		delete(displayOngoingRequests, seq)
+		displayRequestsLock.Lock()
+		delete(displayOngoingRequests, ctrlAction.Seq)
+		displayRequestsLock.Unlock()
 		if response.Error != "" {
 			return nil, ErrorfL(
 				&scopedLogger,
@@ -65,8 +77,9 @@ func CallDisplayCtrlAction(action string, params map[string]interface{}) (*CtrlR
 		}
 		return response, nil
 	case <-time.After(10 * time.Second):
-		close(responseChan)
-		delete(displayOngoingRequests, seq)
+		displayRequestsLock.Lock()
+		delete(displayOngoingRequests, ctrlAction.Seq)
+		displayRequestsLock.Unlock()
 		return nil, ErrorfL(&scopedLogger, "timeout waiting for response", nil)
 	}
 }
@@ -172,7 +185,9 @@ func handleDisplayCtrlClient(conn net.Conn) {
 		scopedLogger.Trace().Interface("data", displayResp).Msg("display sock msg")
 
 		if displayResp.Seq != 0 {
+			displayRequestsLock.RLock()
 			responseChan, ok := displayOngoingRequests[displayResp.Seq]
+			displayRequestsLock.RUnlock()
 			if ok {
 				responseChan <- &displayResp
 			}

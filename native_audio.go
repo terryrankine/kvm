@@ -21,23 +21,28 @@ var audioSocketConn net.Conn
 var audioOngoingRequests = make(map[int32]chan *CtrlResponse)
 
 var audioLock = &sync.Mutex{}
+var audioRequestsLock = &sync.RWMutex{}
 
 func CallAudioCtrlAction(action string, params map[string]interface{}) (*CtrlResponse, error) {
 	audioLock.Lock()
-	defer audioLock.Unlock()
 	ctrlAction := CtrlAction{
 		Action: action,
 		Seq:    seq,
 		Params: params,
 	}
 
-	responseChan := make(chan *CtrlResponse)
+	responseChan := make(chan *CtrlResponse, 1)
+	audioRequestsLock.Lock()
 	audioOngoingRequests[seq] = responseChan
+	audioRequestsLock.Unlock()
 	seq++
 
 	jsonData, err := json.Marshal(ctrlAction)
 	if err != nil {
+		audioRequestsLock.Lock()
 		delete(audioOngoingRequests, ctrlAction.Seq)
+		audioRequestsLock.Unlock()
+		audioLock.Unlock()
 		return nil, fmt.Errorf("error marshaling ctrl action: %w", err)
 	}
 
@@ -49,13 +54,20 @@ func CallAudioCtrlAction(action string, params map[string]interface{}) (*CtrlRes
 
 	err = WriteAudioCtrlMessage(jsonData)
 	if err != nil {
+		audioRequestsLock.Lock()
 		delete(audioOngoingRequests, ctrlAction.Seq)
+		audioRequestsLock.Unlock()
+		audioLock.Unlock()
 		return nil, ErrorfL(&scopedLogger, "error writing audio ctrl message", err)
 	}
 
+	audioLock.Unlock()
+
 	select {
 	case response := <-responseChan:
-		delete(audioOngoingRequests, seq)
+		audioRequestsLock.Lock()
+		delete(audioOngoingRequests, ctrlAction.Seq)
+		audioRequestsLock.Unlock()
 		if response.Error != "" {
 			return nil, ErrorfL(
 				&scopedLogger,
@@ -65,8 +77,9 @@ func CallAudioCtrlAction(action string, params map[string]interface{}) (*CtrlRes
 		}
 		return response, nil
 	case <-time.After(5 * time.Second):
-		close(responseChan)
-		delete(audioOngoingRequests, seq)
+		audioRequestsLock.Lock()
+		delete(audioOngoingRequests, ctrlAction.Seq)
+		audioRequestsLock.Unlock()
 		return nil, ErrorfL(&scopedLogger, "timeout waiting for response", nil)
 	}
 }
@@ -168,7 +181,9 @@ func handleAudioCtrlClient(conn net.Conn) {
 		scopedLogger.Trace().Interface("data", audioResp).Msg("audio sock msg")
 
 		if audioResp.Seq != 0 {
+			audioRequestsLock.RLock()
 			responseChan, ok := audioOngoingRequests[audioResp.Seq]
+			audioRequestsLock.RUnlock()
 			if ok {
 				responseChan <- &audioResp
 			}

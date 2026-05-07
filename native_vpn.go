@@ -21,23 +21,28 @@ var vpnSocketConn net.Conn
 var vpnOngoingRequests = make(map[int32]chan *CtrlResponse)
 
 var vpnLock = &sync.Mutex{}
+var vpnRequestsLock = &sync.RWMutex{}
 
 func CallVpnCtrlAction(action string, params map[string]interface{}) (*CtrlResponse, error) {
 	vpnLock.Lock()
-	defer vpnLock.Unlock()
 	ctrlAction := CtrlAction{
 		Action: action,
 		Seq:    seq,
 		Params: params,
 	}
 
-	responseChan := make(chan *CtrlResponse)
+	responseChan := make(chan *CtrlResponse, 1)
+	vpnRequestsLock.Lock()
 	vpnOngoingRequests[seq] = responseChan
+	vpnRequestsLock.Unlock()
 	seq++
 
 	jsonData, err := json.Marshal(ctrlAction)
 	if err != nil {
+		vpnRequestsLock.Lock()
 		delete(vpnOngoingRequests, ctrlAction.Seq)
+		vpnRequestsLock.Unlock()
+		vpnLock.Unlock()
 		return nil, fmt.Errorf("error marshaling ctrl action: %w", err)
 	}
 
@@ -49,13 +54,20 @@ func CallVpnCtrlAction(action string, params map[string]interface{}) (*CtrlRespo
 
 	err = WriteVpnCtrlMessage(jsonData)
 	if err != nil {
+		vpnRequestsLock.Lock()
 		delete(vpnOngoingRequests, ctrlAction.Seq)
+		vpnRequestsLock.Unlock()
+		vpnLock.Unlock()
 		return nil, ErrorfL(&scopedLogger, "error writing vpn ctrl message", err)
 	}
 
+	vpnLock.Unlock()
+
 	select {
 	case response := <-responseChan:
-		delete(vpnOngoingRequests, seq)
+		vpnRequestsLock.Lock()
+		delete(vpnOngoingRequests, ctrlAction.Seq)
+		vpnRequestsLock.Unlock()
 		if response.Error != "" {
 			return nil, ErrorfL(
 				&scopedLogger,
@@ -65,8 +77,9 @@ func CallVpnCtrlAction(action string, params map[string]interface{}) (*CtrlRespo
 		}
 		return response, nil
 	case <-time.After(10 * time.Second):
-		close(responseChan)
-		delete(vpnOngoingRequests, seq)
+		vpnRequestsLock.Lock()
+		delete(vpnOngoingRequests, ctrlAction.Seq)
+		vpnRequestsLock.Unlock()
 		return nil, ErrorfL(&scopedLogger, "timeout waiting for response", nil)
 	}
 }
@@ -172,7 +185,9 @@ func handleVpnCtrlClient(conn net.Conn) {
 		scopedLogger.Trace().Interface("data", vpnResp).Msg("vpn sock msg")
 
 		if vpnResp.Seq != 0 {
+			vpnRequestsLock.RLock()
 			responseChan, ok := vpnOngoingRequests[vpnResp.Seq]
+			vpnRequestsLock.RUnlock()
 			if ok {
 				responseChan <- &vpnResp
 			}
