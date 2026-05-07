@@ -17,7 +17,8 @@ export const useMouseEvents = (
     lastPanPoint: React.MutableRefObject<{ x: number; y: number } | null>;
   },
   disableTouchClick?: boolean,
-  externalButtons = 0
+  externalButtons = 0,
+  containerRef?: React.RefObject<HTMLDivElement>,
 ) => {
   const [send] = useJsonRpc();
   const [blockWheelEvent, setBlockWheelEvent] = useState(false);
@@ -221,7 +222,10 @@ export const useMouseEvents = (
     videoElmRefValue.addEventListener("wheel", mouseWheelHandler, { signal, passive: true });
 
     if (isRelativeMouseMode) {
-      videoElmRefValue.addEventListener("click",
+      // Use containerRef so pointer lock can be requested even when HDMI has no
+      // signal and the video element is hidden/empty (PR #822).
+      const pointerLockTarget = containerRef?.current ?? videoElmRefValue;
+      pointerLockTarget.addEventListener("click",
         () => {
           if (pointerLock.isPointerLockPossible && !pointerLock.isPointerLockActive && !document.pointerLockElement) {
             pointerLock.requestPointerLock();
@@ -244,6 +248,7 @@ export const useMouseEvents = (
     mouseWheelHandler,
     pointerLock,
     resetMousePosition,
+    containerRef,
   ]);
 
   return { setupMouseEvents };

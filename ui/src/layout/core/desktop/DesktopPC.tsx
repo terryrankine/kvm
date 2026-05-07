@@ -61,7 +61,7 @@ export default function PCDesktop({ isFullscreen }: { isFullscreen?: number }) {
   const { handleGlobalPaste } = usePasteHandler(pasteCaptureRef as React.RefObject<HTMLTextAreaElement>);
 
   const keyboardEvents = useKeyboardEvents(pasteCaptureRef as React.RefObject<HTMLTextAreaElement>, isReinitializingGadget);
-  const mouseEvents = useMouseEvents(videoElm as React.RefObject<HTMLVideoElement>, pointerLock, touchZoom);
+  const mouseEvents = useMouseEvents(videoElm as React.RefObject<HTMLVideoElement>, pointerLock, touchZoom, undefined, 0, containerRef as React.RefObject<HTMLDivElement>);
   const overlays = useVideoOverlays(videoStream, pointerLock, videoEffects);
 
   useEffect(() => {
