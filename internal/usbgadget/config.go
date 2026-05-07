@@ -11,13 +11,14 @@ import (
 )
 
 type gadgetConfigItem struct {
-	order       uint
-	device      string
-	path        []string
-	attrs       gadgetAttributes
-	configAttrs gadgetAttributes
-	configPath  []string
-	reportDesc  []byte
+	order         uint
+	device        string
+	path          []string
+	attrs         gadgetAttributes
+	optionalAttrs gadgetAttributes // written with IgnoreErrors; for kernel features that may not exist
+	configAttrs   gadgetAttributes
+	configPath    []string
+	reportDesc    []byte
 }
 
 type gadgetAttributes map[string]string
@@ -39,7 +40,7 @@ var defaultGadgetConfig = map[string]gadgetConfigItem{
 			"bcdDevice": "0x0100", // USB2
 		},
 		configAttrs: gadgetAttributes{
-			"MaxPower":     "250",  // in unit of 2mA
+			"MaxPower":      "250", // in unit of 2mA
 			"bmAttributes": "0xa0", // 0x80 = bus-powered, 0xa0 = bus-powered + remote wakeup
 		},
 	},

@@ -277,6 +277,16 @@ func (tx *UsbGadgetTransaction) writeGadgetItemConfig(item gadgetConfigItem, dep
 		)...)
 	}
 
+	if len(item.optionalAttrs) > 0 {
+		// write optional attributes (IgnoreErrors=true for backward compat with older kernels)
+		files = append(files, tx.writeGadgetAttrsOptional(
+			gadgetItemPath,
+			item.optionalAttrs,
+			component,
+			beforeChange,
+		)...)
+	}
+
 	// write report descriptor if available
 	reportDescPath := path.Join(gadgetItemPath, "report_desc")
 	if item.reportDesc != nil {
@@ -344,6 +354,24 @@ func (tx *UsbGadgetTransaction) writeGadgetAttrs(basePath string, attrs gadgetAt
 			Description:     "write gadget attribute",
 			DependsOn:       []string{basePath},
 			BeforeChange:    beforeChange,
+		})
+		files = append(files, filePath)
+	}
+	return files
+}
+
+func (tx *UsbGadgetTransaction) writeGadgetAttrsOptional(basePath string, attrs gadgetAttributes, component string, beforeChange []string) (files []string) {
+	files = make([]string, 0)
+	for key, val := range attrs {
+		filePath := filepath.Join(basePath, key)
+		tx.addFileChange(component, RequestedFileChange{
+			Path:            filePath,
+			ExpectedState:   FileStateFileContentMatch,
+			ExpectedContent: []byte(val),
+			Description:     "write optional gadget attribute",
+			DependsOn:       []string{basePath},
+			BeforeChange:    beforeChange,
+			IgnoreErrors:    true,
 		})
 		files = append(files, filePath)
 	}

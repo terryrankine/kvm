@@ -18,6 +18,9 @@ var relativeMouseConfig = gadgetConfigItem{
 		"report_length":   "4",
 		"no_out_endpoint": "1",
 	},
+	optionalAttrs: gadgetAttributes{
+		"wakeup_on_write": "1",
+	},
 	reportDesc: relativeMouseCombinedReportDesc,
 }
 

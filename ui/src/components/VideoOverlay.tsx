@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { ExclamationTriangleIcon } from "@heroicons/react/24/solid";
 import { motion, AnimatePresence } from "framer-motion";
 import { LuPlay } from "react-icons/lu";
@@ -285,6 +285,19 @@ export function HDMIErrorOverlay({ show, hdmiState }: HDMIErrorOverlayProps) {
     }
   };
 
+  const [isWaking, setIsWaking] = useState(false);
+
+  // Sends a spacebar HID press+release to wake a sleeping host (PR #1236 approach)
+  const handleWakeHost = useCallback(() => {
+    setIsWaking(true);
+    // HID usage 0x2C = spacebar
+    send("keyboardReport", { keys: [0x2c, 0, 0, 0, 0, 0], modifier: 0 }, () => {
+      send("keyboardReport", { keys: [0, 0, 0, 0, 0, 0], modifier: 0 }, () => {
+        setTimeout(() => setIsWaking(false), 3000);
+      });
+    });
+  }, [send]);
+
   const onSendUsbWakeupSignal = useCallback(() => {
     send("sendUsbWakeupSignal", {}, resp => {
       if ("error" in resp) {
@@ -352,24 +365,34 @@ export function HDMIErrorOverlay({ show, hdmiState }: HDMIErrorOverlayProps) {
                         </ul>
                       </AntdCard>
                     </div>
-                    <div className={`flex  w-full justify-between ${isMobile ? "flex-col h-[100px]" : "flex-row"}`}>
+                    <div className={`flex w-full justify-between gap-1 ${isMobile ? "flex-col" : "flex-row flex-wrap"}`}>
 
                       <AntdButton
                         type="primary"
                         icon={<SuaXinSvg />}
                         iconPosition={"end"}
                         onClick={onSendUsbWakeupSignal}
-                        className={isMobile?"w-full !h-[40px]":"w-[49%]"}
+                        className={isMobile ? "w-full !h-[40px]" : "flex-1"}
                       >
                         {$at("Try Wakeup")}
                       </AntdButton>
-                      {isMobile&&<div className="w-full h-[10px]"></div>}
+                      {isMobile && <div className="w-full h-[10px]" />}
+
+                      <AntdButton
+                        type="default"
+                        onClick={handleWakeHost}
+                        disabled={isWaking}
+                        className={isMobile ? "w-full !h-[40px]" : "flex-1"}
+                      >
+                        {isWaking ? $at("Sending wake signal...") : $at("Try Wake Host")}
+                      </AntdButton>
+                      {isMobile && <div className="w-full h-[10px]" />}
 
                       <AntdButton
                         href={"https://wiki.luckfox.com/intro"}
                         iconPosition={"end"}
                         icon={<TiaoZhuanSvg />}
-                        className={isMobile?"w-full !h-[40px]":"w-[49%]"}
+                        className={isMobile ? "w-full !h-[40px]" : "flex-1"}
                       >
                         {$at("Learn more")}
                       </AntdButton>
