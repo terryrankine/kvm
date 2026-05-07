@@ -92,7 +92,7 @@ export function Dialog({ onClose }: { onClose: () => void }) {
 
     setMountInProgress(true);
     send("mountWithHTTP", { url, mode }, async resp => {
-      if ("error" in resp) triggerError(resp.error.message);
+      if ("error" in resp) { triggerError(resp.error.message); setMountInProgress(false); return; }
 
       clearMountMediaState();
       syncRemoteVirtualMediaState()
@@ -116,7 +116,7 @@ export function Dialog({ onClose }: { onClose: () => void }) {
 
     setMountInProgress(true);
     send("mountWithStorage", { filename: fileName, mode }, async resp => {
-      if ("error" in resp) triggerError(resp.error.message);
+      if ("error" in resp) { triggerError(resp.error.message); setMountInProgress(false); return; }
 
       clearMountMediaState();
       syncRemoteVirtualMediaState()
@@ -148,7 +148,7 @@ export function Dialog({ onClose }: { onClose: () => void }) {
  
     setMountInProgress(true);
     send("mountWithSDStorage", { filename: fileName, mode }, async resp => {
-      if ("error" in resp) triggerError(resp.error.message);
+      if ("error" in resp) { triggerError(resp.error.message); setMountInProgress(false); return; }
 
       clearMountMediaState();
       syncRemoteVirtualMediaState()

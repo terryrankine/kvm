@@ -42,7 +42,7 @@ export const useVideoOverlays = (
     if (hdmiError) return false;
     if (videoHeight === 0 || videoWidth === 0) return false;
     return true;
-  }, [hdmiError, videoStream.isPlaying, videoStream.peerConnectionState, videoHeight, videoWidth]);
+  }, [forceHttp, hdmiError, videoStream.isPlaying, videoStream.peerConnectionState, videoHeight, videoWidth]);
 
   const shouldHideVideo = isVideoLoading || hdmiError || (videoStream.peerConnectionState !== "connected" && !forceHttp);
   const showConnectionOverlays = videoStream.peerConnectionState === "connected" || forceHttp;
