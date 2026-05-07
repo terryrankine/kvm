@@ -16,4 +16,4 @@ Store only a bcrypt hash of the token. On first boot generate a random 32-byte t
 
 ## Status
 
-- [ ] TODO
+- [ ] TODO — `LocalAuthToken` is a random UUID used as a browser session cookie. It is stored in plaintext in `/userdata/kvm_config.json`. An attacker with config file read access can replay this token to impersonate a logged-in session. Severity is medium in practice: requires config file access (physical or OTA exploit), and the token is regenerated on each login. A proper fix stores a hashed token or replaces the UUID scheme with a signed JWT.

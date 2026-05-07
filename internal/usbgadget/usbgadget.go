@@ -61,9 +61,10 @@ type UsbGadget struct {
 
 	configLock sync.Mutex
 
-	keyboardHidFile *os.File
-	keyboardLock    sync.Mutex
-	absMouseHidFile *os.File
+	keyboardHidFile     *os.File
+	keyboardHidFileLock sync.Mutex
+	keyboardLock        sync.Mutex
+	absMouseHidFile     *os.File
 	absMouseLock    sync.Mutex
 	relMouseHidFile *os.File
 	relMouseLock    sync.Mutex

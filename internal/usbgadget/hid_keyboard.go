@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/rs/xid"
@@ -318,8 +317,6 @@ func (u *UsbGadget) listenKeyboardEvents() {
 	}
 }
 
-var keyboardHidFileLock sync.Mutex
-
 func (u *UsbGadget) openKeyboardHidFileUnderMutex() error {
 	if u.keyboardHidFile != nil {
 		return nil
@@ -356,15 +353,15 @@ func (u *UsbGadget) openKeyboardHidFileUnderMutex() error {
 }
 
 func (u *UsbGadget) OpenKeyboardHidFile() error {
-	keyboardHidFileLock.Lock()
-	defer keyboardHidFileLock.Unlock()
+	u.keyboardHidFileLock.Lock()
+	defer u.keyboardHidFileLock.Unlock()
 
 	return u.openKeyboardHidFileUnderMutex()
 }
 
 func (u *UsbGadget) keyboardWriteHidFile(modifier byte, keys []byte) error {
-	keyboardHidFileLock.Lock()
-	defer keyboardHidFileLock.Unlock()
+	u.keyboardHidFileLock.Lock()
+	defer u.keyboardHidFileLock.Unlock()
 
 	if err := u.openKeyboardHidFileUnderMutex(); err != nil {
 		return err

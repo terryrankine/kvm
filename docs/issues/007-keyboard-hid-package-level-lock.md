@@ -16,4 +16,4 @@ Move the lock inside the struct so each instance has its own lock. Add a test th
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — Moved `keyboardHidFileLock` from package-level `var keyboardHidFileLock sync.Mutex` to a per-instance field `keyboardHidFileLock sync.Mutex` in the `UsbGadget` struct (`usbgadget.go`). All call sites updated to use `u.keyboardHidFileLock`. Removed now-unused `sync` import from `hid_keyboard.go`.

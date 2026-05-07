@@ -16,4 +16,4 @@ Register all `/api/` config mutation endpoints behind `authMiddleware()`. Add in
 
 ## Status
 
-- [ ] TODO
+- [x] FALSE POSITIVE — `rpcSetConfigRaw` is a JSON-RPC method dispatched only through the WebSocket signaling endpoint (`/webrtc/signaling/client`) which is registered under the `protected` router group with `protectedMiddleware()`. Unauthenticated callers cannot reach it. No code change required.
