@@ -160,13 +160,25 @@ func resetIOInput() error {
 func initGPIO() {
 	LoadConfig()
 	// IO0: GPIO58 IO1: GPIO59
-	_ = setGPIOValue(58, config.IO0Status)
-	_ = setGPIOValue(59, config.IO1Status)
+	if err := setGPIOValue(58, config.IO0Status); err != nil {
+		logger.Warn().Err(err).Msg("failed to initialise GPIO58 (IO0)")
+	}
+	if err := setGPIOValue(59, config.IO1Status); err != nil {
+		logger.Warn().Err(err).Msg("failed to initialise GPIO59 (IO1)")
+	}
 
 	// IO2: GPIO0 IO3: GPIO1 - Input
-	_ = setGPIODirection(0, "in")
-	_ = setGPIODirection(1, "in")
+	if err := setGPIODirection(0, "in"); err != nil {
+		logger.Warn().Err(err).Msg("failed to set GPIO0 (IO2) direction")
+	}
+	if err := setGPIODirection(1, "in"); err != nil {
+		logger.Warn().Err(err).Msg("failed to set GPIO1 (IO3) direction")
+	}
 
-	_ = setLedMode(ledYellowPath, config.LEDYellowMode)
-	_ = setLedMode(ledGreenPath, config.LEDGreenMode)
+	if err := setLedMode(ledYellowPath, config.LEDYellowMode); err != nil {
+		logger.Warn().Err(err).Msg("failed to set yellow LED mode")
+	}
+	if err := setLedMode(ledGreenPath, config.LEDGreenMode); err != nil {
+		logger.Warn().Err(err).Msg("failed to set green LED mode")
+	}
 }

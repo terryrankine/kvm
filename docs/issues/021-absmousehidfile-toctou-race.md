@@ -16,4 +16,4 @@ Open the file directly and handle the error rather than pre-checking existence. 
 
 ## Status
 
-- [ ] TODO
+- [x] FALSE POSITIVE — `internal/usbgadget/hid_mouse_absolute.go` `absMouseWriteHidFile()` does NOT check file existence before opening. It checks `u.absMouseHidFile == nil` (in-memory state) then calls `os.OpenFile` directly, handling the error inline. No check-then-act on the filesystem. No code change required.

@@ -1224,8 +1224,12 @@ func rpcGetIOSettings() (IOSettings, error) {
 func rpcSetIOSettings(settings IOSettings) error {
 	LoadConfig()
 	// IO0: GPIO58 IO1: GPIO59
-	_ = setGPIOValue(58, settings.IO0Status)
-	_ = setGPIOValue(59, settings.IO1Status)
+	if err := setGPIOValue(58, settings.IO0Status); err != nil {
+		logger.Warn().Err(err).Msg("failed to set GPIO58 (IO0)")
+	}
+	if err := setGPIOValue(59, settings.IO1Status); err != nil {
+		logger.Warn().Err(err).Msg("failed to set GPIO59 (IO1)")
+	}
 
 	config.IO0Status = settings.IO0Status
 	config.IO1Status = settings.IO1Status

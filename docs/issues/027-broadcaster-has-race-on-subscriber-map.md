@@ -16,4 +16,4 @@ Protect the subscriber map with a `sync.RWMutex` or use a channel-based design. 
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED — `stream_broadcaster.go` `VideoBroadcaster` has a `lock sync.RWMutex` field. `Subscribe` and `Unsubscribe` use `lock.Lock()`, `Broadcast` uses `lock.RLock()`. Fully protected. No code change required.

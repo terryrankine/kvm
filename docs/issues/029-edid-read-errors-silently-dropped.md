@@ -16,4 +16,4 @@ Log EDID errors at WARN and surface a `edidAvailable: false` flag in the device 
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED — `native.go` `restoreHdmiEdid()` already logs failed EDID restore at WARN (`videoLogger.Warn().Err(err).Msg("Failed to restore HDMI EDID")`). `rpcSetEDID` and `rpcGetEDID` propagate errors to callers. No silent drops found. No code change required.

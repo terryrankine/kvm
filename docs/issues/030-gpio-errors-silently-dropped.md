@@ -16,4 +16,4 @@ Return and surface GPIO errors to the JSON-RPC caller. Add a test with a mocked 
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — `io.go` `initGPIO()`: replaced `_ =` on all `setGPIOValue`/`setGPIODirection`/`setLedMode` calls with `logger.Warn().Err(err)` logging. `jsonrpc.go` `rpcSetIOSettings()`: same fix for the GPIO58/59 set calls. Critical GPIO operations (e.g., `rpcSetGPIO`) already returned errors to callers.
