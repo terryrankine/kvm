@@ -1,0 +1,28 @@
+Total messages: 26 (Errors: 0, Warnings: 0)
+
+[LOG] requestFullscreen 0 0 @ http://picokvm.local/static/assets/index-CR4OF-yv.js:854
+[LOG] not requestFullscreen 0 @ http://picokvm.local/static/assets/index-CR4OF-yv.js:854
+[LOG] [Websocket] onOpen @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [Websocket] Received device-metadata message @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [Websocket] Device version 0.1.2 @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [Websocket] Device is using new signaling @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [setupPeerConnection] Setting up peer connection @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [setupPeerConnection] Creating peer connection @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [setupPeerConnection] Peer connection created RTCPeerConnection @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [setupPeerConnection] Creating offer @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] ICE Gathering Started @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [Websocket] Received answer @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [Websocket] Setting remote answer pending true @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [setRemoteSessionDescription] Remote description set successfully @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [Websocket] Received new-ice-candidate @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [Websocket] Received new-ice-candidate @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [Websocket] Received new-ice-candidate @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [setupPeerConnection] Connection state changed connecting @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] ICE Gathering completed @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [setupPeerConnection] Connection state changed connected @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] Keyboard led state {num_lock: false, caps_lock: false, scroll_lock: false, compose: false, kana: false} @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] Keyboard led state {num_lock: false, caps_lock: false, scroll_lock: false, compose: false, kana: false} @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] Keyboard led state {num_lock: false, caps_lock: false, scroll_lock: false, compose: false, kana: false} @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] Keyboard led state {num_lock: false, caps_lock: false, scroll_lock: false, compose: false, kana: false} @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [setRemoteSessionDescription] Remote description set @ http://picokvm.local/static/assets/index-CR4OF-yv.js:1338
+[LOG] [MOUSE DEBUG] storeVW: 1920 storeVH: 1080 cw: 1103 ch: 620 elemAR: 1.779 streamAR: 1.778 offsetX: 0.4 effectiveW: 1102.2 @ http://picokvm.local/static/assets/index-CR4OF-yv.js:854

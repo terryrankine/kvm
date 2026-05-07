@@ -57,7 +57,7 @@ func CheckRateLimit(ip string) (bool, time.Duration) {
 	}
 
 	if time.Now().Before(info.BlockUntil) {
-		return false, info.BlockUntil.Sub(time.Now())
+		return false, time.Until(info.BlockUntil)
 	}
 
 	return true, 0

@@ -119,14 +119,7 @@ func WriteCtrlMessage(message []byte) error {
 	return err
 }
 
-var videoCtrlSocketListener net.Listener //nolint:unused
-var videoSocketListener net.Listener     //nolint:unused
-
 var ctrlClientConnected = make(chan struct{})
-
-func waitCtrlClientConnected() {
-	<-ctrlClientConnected
-}
 
 func StartVideoSocketServer(socketPath string, handleClient func(net.Conn), isCtrl bool) net.Listener {
 	scopedLogger := videoLogger.With().
@@ -178,12 +171,12 @@ func StartVideoSocketServer(socketPath string, handleClient func(net.Conn), isCt
 }
 
 func StartVideoCtrlSocketServer() {
-	videoCtrlSocketListener = StartVideoSocketServer("/var/run/kvm_ctrl.sock", handleCtrlClient, true)
+	_ = StartVideoSocketServer("/var/run/kvm_ctrl.sock", handleCtrlClient, true)
 	videoLogger.Debug().Msg("native app ctrl sock started")
 }
 
 func StartVideoDataSocketServer() {
-	videoSocketListener = StartVideoSocketServer("/var/run/kvm_video.sock", handleVideoClient, false)
+	_ = StartVideoSocketServer("/var/run/kvm_video.sock", handleVideoClient, false)
 	videoLogger.Debug().Msg("native app video sock started")
 }
 

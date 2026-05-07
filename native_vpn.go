@@ -79,8 +79,6 @@ func WriteVpnCtrlMessage(message []byte) error {
 	return err
 }
 
-var vpnCtrlSocketListener net.Listener
-
 var vpnCtrlClientConnected = make(chan struct{})
 
 func waitVpnCtrlClientConnected() {
@@ -136,7 +134,7 @@ func StartVpnSocketServer(socketPath string, handleClient func(net.Conn), isCtrl
 }
 
 func StartVpnCtrlSocketServer() {
-	vpnCtrlSocketListener = StartVpnSocketServer("/var/run/kvm_vpn.sock", handleVpnCtrlClient, true)
+	_ = StartVpnSocketServer("/var/run/kvm_vpn.sock", handleVpnCtrlClient, true)
 	vpnLogger.Debug().Msg("vpn ctrl sock started")
 }
 

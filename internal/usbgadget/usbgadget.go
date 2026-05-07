@@ -106,7 +106,6 @@ const configFSPath = "/sys/kernel/config"
 const gadgetPath = "/sys/kernel/config/usb_gadget"
 
 const functionFSPath = "/dev/ffs-mtp"
-const umtprdPath = "/usr/sbin/umtprd"
 
 var defaultLogger = logging.GetSubsystemLogger("usbgadget")
 

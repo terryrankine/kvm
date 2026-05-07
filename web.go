@@ -872,19 +872,6 @@ func handleDeviceStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func handleDeviceUIConfig(c *gin.Context) {
-	configData, _ := json.Marshal(gin.H{
-		"DEVICE_VERSION": builtAppVersion,
-	})
-	if configData == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to marshal config"})
-		return
-	}
-
-	response := fmt.Sprintf("window.KVM_CONFIG = %s;", configData)
-
-	c.Data(http.StatusOK, "text/javascript; charset=utf-8", []byte(response))
-}
 
 func handleSetup(c *gin.Context) {
 	// Check if the device is already set up

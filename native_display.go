@@ -79,8 +79,6 @@ func WriteDisplayCtrlMessage(message []byte) error {
 	return err
 }
 
-var displayCtrlSocketListener net.Listener
-
 var displayCtrlClientConnected = make(chan struct{})
 
 func waitDisplayCtrlClientConnected() {
@@ -136,7 +134,7 @@ func StartDisplaySocketServer(socketPath string, handleClient func(net.Conn), is
 }
 
 func StartDisplayCtrlSocketServer() {
-	displayCtrlSocketListener = StartDisplaySocketServer("/var/run/kvm_display.sock", handleDisplayCtrlClient, true)
+	_ = StartDisplaySocketServer("/var/run/kvm_display.sock", handleDisplayCtrlClient, true)
 	displayLogger.Debug().Msg("display ctrl sock started")
 }
 

@@ -28,13 +28,6 @@ func extractSerialNumber() (string, error) {
 	return matches[1], nil
 }
 
-func readOtpEntropy() ([]byte, error) { //nolint:unused
-	content, err := os.ReadFile("/sys/bus/nvmem/devices/rockchip-otp0/nvmem")
-	if err != nil {
-		return nil, err
-	}
-	return content[0x17:0x1C], nil
-}
 
 var deviceID string
 var deviceIDOnce sync.Once

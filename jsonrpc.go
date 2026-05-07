@@ -928,9 +928,6 @@ func rpcSetConfigRaw(configStr string) error {
 	return nil
 }
 
-func rpcSetDCRestoreState(_ int) error {
-	return fmt.Errorf("DC power control not supported on this hardware")
-}
 
 func rpcGetActiveExtension() (string, error) {
 	return config.ActiveExtension, nil

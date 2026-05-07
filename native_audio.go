@@ -79,13 +79,7 @@ func WriteAudioCtrlMessage(message []byte) error {
 	return err
 }
 
-var audioCtrlSocketListener net.Listener
-
 var audioCtrlClientConnected = make(chan struct{})
-
-func waitAudioCtrlClientConnected() {
-	<-audioCtrlClientConnected
-}
 
 func StartAudioSocketServer(socketPath string, handleClient func(net.Conn), isCtrl bool) net.Listener {
 	scopedLogger := audioLogger.With().
@@ -136,7 +130,7 @@ func StartAudioSocketServer(socketPath string, handleClient func(net.Conn), isCt
 }
 
 func StartAudioCtrlSocketServer() {
-	audioCtrlSocketListener = StartAudioSocketServer("/var/run/kvm_audio.sock", handleAudioCtrlClient, true)
+	_ = StartAudioSocketServer("/var/run/kvm_audio.sock", handleAudioCtrlClient, true)
 	audioLogger.Debug().Msg("audio ctrl sock started")
 }
 

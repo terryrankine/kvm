@@ -11,7 +11,6 @@ import (
 var backlightState = 0 // 0 - NORMAL, 1 - DIMMED, 2 - OFF
 
 var (
-	currentScreen   = "ui_Boot_Screen"
 	displayedTexts  = make(map[string]string)
 	screenStateLock = sync.Mutex{}
 )
@@ -26,66 +25,16 @@ const (
 	backlightControlClass string = "/sys/class/backlight/backlight/brightness"
 )
 
-// do not call this function directly, use switchToScreenIfDifferent instead
-// this function is not thread safe
-func switchToScreen(screen string) {
-	_, err := CallDisplayCtrlAction("lv_scr_load", map[string]any{"obj": screen})
-
-	if err != nil {
-		displayLogger.Warn().Err(err).Str("screen", screen).Msg("failed to switch to screen")
-		return
-	}
-	currentScreen = screen
-}
-
 func lvObjSetState(objName string, state string) (*CtrlResponse, error) {
 	return CallDisplayCtrlAction("lv_obj_set_state", map[string]any{"obj": objName, "state": state})
-}
-
-func lvObjAddFlag(objName string, flag string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_add_flag", map[string]any{"obj": objName, "flag": flag})
-}
-
-func lvObjClearFlag(objName string, flag string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_clear_flag", map[string]any{"obj": objName, "flag": flag})
-
-}
-
-func lvObjHide(objName string) (*CtrlResponse, error) {
-	return lvObjAddFlag(objName, "LV_OBJ_FLAG_HIDDEN")
-}
-
-func lvObjShow(objName string) (*CtrlResponse, error) {
-	return lvObjClearFlag(objName, "LV_OBJ_FLAG_HIDDEN")
-}
-
-func lvObjSetOpacity(objName string, opacity int) (*CtrlResponse, error) { // nolint:unused
-	return CallDisplayCtrlAction("lv_obj_set_style_opa_layered", map[string]any{"obj": objName, "opa": opacity})
-}
-
-func lvObjFadeIn(objName string, duration uint32) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_fade_in", map[string]any{"obj": objName, "time": duration})
-}
-
-func lvObjFadeOut(objName string, duration uint32) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_fade_out", map[string]any{"obj": objName, "time": duration})
 }
 
 func lvLabelSetText(objName string, text string) (*CtrlResponse, error) {
 	return CallDisplayCtrlAction("lv_label_set_text", map[string]any{"obj": objName, "text": text})
 }
 
-func lvImgSetSrc(objName string, src string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_img_set_src", map[string]any{"obj": objName, "src": src})
-}
-
 func lvDispSetRotation(rotation string) (*CtrlResponse, error) {
 	return CallDisplayCtrlAction("lv_disp_set_rotation", map[string]any{"rotation": rotation})
-}
-
-func lvObjSetStyleBgColor(objName string, color string) (*CtrlResponse, error) {
-	return CallDisplayCtrlAction("lv_obj_set_style_bg_color", map[string]any{"obj": objName, "color": color})
-
 }
 
 func updateLabelIfChanged(objName string, newText string) {
@@ -96,24 +45,6 @@ func updateLabelIfChanged(objName string, newText string) {
 		_, _ = lvLabelSetText(objName, newText)
 		displayedTexts[objName] = newText
 	}
-}
-
-func switchToScreenIfDifferent(screenName string) {
-	screenStateLock.Lock()
-	defer screenStateLock.Unlock()
-
-	if currentScreen != screenName {
-		displayLogger.Info().Str("from", currentScreen).Str("to", screenName).Msg("switching screen")
-		switchToScreen(screenName)
-	}
-}
-
-func clearDisplayState() {
-	screenStateLock.Lock()
-	defer screenStateLock.Unlock()
-
-	displayedTexts = make(map[string]string)
-	currentScreen = "ui_Boot_Screen"
 }
 
 func updateDisplay() {
@@ -314,11 +245,8 @@ func startBacklightTickers() {
 		dimTicker = time.NewTicker(time.Duration(config.DisplayDimAfterSec) * time.Second)
 
 		go func() {
-			for { //nolint:staticcheck
-				select {
-				case <-dimTicker.C:
-					tick_displayDim()
-				}
+			for range dimTicker.C {
+				tick_displayDim()
 			}
 		}()
 	}
@@ -328,11 +256,8 @@ func startBacklightTickers() {
 		offTicker = time.NewTicker(time.Duration(config.DisplayOffAfterSec) * time.Second)
 
 		go func() {
-			for { //nolint:staticcheck
-				select {
-				case <-offTicker.C:
-					tick_displayOff()
-				}
+			for range offTicker.C {
+				tick_displayOff()
 			}
 		}()
 	}

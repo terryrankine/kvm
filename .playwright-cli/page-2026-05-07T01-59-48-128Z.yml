@@ -1,0 +1,68 @@
+- generic [ref=e3]:
+  - generic:
+    - button
+  - generic [ref=e4]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - link [ref=e9] [cursor=pointer]:
+          - /url: https://wiki.luckfox.com/intro/
+        - button "Settings" [ref=e11] [cursor=pointer]:
+          - img [ref=e13]
+          - generic [ref=e16]: Settings
+        - button "Clipboard" [ref=e17] [cursor=pointer]:
+          - img [ref=e19]
+          - generic [ref=e25]: Clipboard
+        - button "Power" [ref=e26] [cursor=pointer]:
+          - img [ref=e28]
+          - generic [ref=e31]: Power
+        - button "Terminal" [ref=e32] [cursor=pointer]:
+          - img [ref=e34]
+          - generic [ref=e39]: Terminal
+        - button "Virtual Keyboard" [ref=e41] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e45]: Virtual Keyboard
+        - button [ref=e48] [cursor=pointer]:
+          - img [ref=e50]
+      - button "Macros" [ref=e58] [cursor=pointer]:
+        - img [ref=e60]
+        - generic [ref=e67]: Macros
+    - generic [ref=e68]:
+      - textbox [ref=e82]
+      - generic [ref=e89]:
+        - img [ref=e91]
+        - paragraph [ref=e94]: Connecting to device...
+    - generic [ref=e98]:
+      - generic [ref=e100]:
+        - generic [ref=e101]: ":"
+        - button "HDMI" [ref=e102] [cursor=pointer]:
+          - img [ref=e104]
+          - generic [ref=e108]: HDMI
+        - button "USB" [ref=e109] [cursor=pointer]:
+          - img [ref=e111]
+          - generic [ref=e120]: USB
+        - button "TailScale" [ref=e121] [cursor=pointer]:
+          - generic [ref=e124]: TailScale
+        - button "Zerotier" [ref=e125] [cursor=pointer]:
+          - generic [ref=e128]: Zerotier
+        - generic [ref=e129]:
+          - generic [ref=e130]: "Keys:"
+          - heading [level=2]
+      - generic [ref=e131]:
+        - generic [ref=e138] [cursor=pointer]:
+          - img [ref=e140]
+          - generic [ref=e167]: Num
+          - generic [ref=e170]: Caps
+          - generic [ref=e173]: Scroll
+        - generic [ref=e178] [cursor=pointer]:
+          - img [ref=e180]
+          - generic [ref=e186]: Mouse
+        - img [ref=e193] [cursor=pointer]
+        - button "Virtual Media" [ref=e200] [cursor=pointer]:
+          - img [ref=e202]
+          - generic [ref=e209]: Virtual Media
+        - button "1887x384 0fps" [ref=e211] [cursor=pointer]:
+          - img [ref=e213]
+          - generic [ref=e218]: 1887x384 0fps
+        - button "Stats" [ref=e221] [cursor=pointer]:
+          - img [ref=e223]
+          - generic [ref=e225]: Stats

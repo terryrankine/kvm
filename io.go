@@ -19,10 +19,6 @@ func exportGPIO(pin int) error {
 	return os.WriteFile(exportFile, []byte(strconv.Itoa(pin)), 0644)
 }
 
-func unexportGPIO(pin int) error {
-	unexportFile := gpioBasePath + "/unexport"
-	return os.WriteFile(unexportFile, []byte(strconv.Itoa(pin)), 0644)
-}
 
 func isGPIOExported(pin int) bool {
 	gpioPath := fmt.Sprintf("%s/gpio%d", gpioBasePath, pin)
