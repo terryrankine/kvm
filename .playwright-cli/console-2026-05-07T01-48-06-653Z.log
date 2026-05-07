@@ -1,3 +1,0 @@
-[   84929ms] [WARNING] Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently @ :0
-[  272966ms] [ERROR] WebSocket connection to 'ws://picokvm.local/webrtc/signaling/client' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://picokvm.local/static/assets/index-25W-Kmq0.js:447
-[  285332ms] [WARNING] WebSocket connection to 'ws://picokvm.local/webrtc/signaling/client' failed: WebSocket is closed before the connection is established. @ http://picokvm.local/static/assets/index-25W-Kmq0.js:447
