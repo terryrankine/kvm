@@ -107,7 +107,7 @@ func (s *Session) initQueues() {
 
 func (s *Session) handleQueues(index int) {
 	for msg := range s.hidQueue[index] {
-		onHidMessage(msg, s)
+		onHidMessage(msg, s, index)
 	}
 }
 

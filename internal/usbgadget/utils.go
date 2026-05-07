@@ -112,64 +112,54 @@ func compareFileContent(oldContent []byte, newContent []byte, looserMatch bool) 
 }
 
 func (u *UsbGadget) writeWithTimeout(file *os.File, data []byte) (n int, err error) {
+	fileName := file.Name()
+
 	if err := file.SetWriteDeadline(time.Now().Add(hidWriteTimeout)); err != nil {
 		return -1, err
 	}
 
 	n, err = file.Write(data)
 	if err == nil {
-		return
+		u.resetLogSuppressionCounter("writeWithTimeout_" + fileName)
+		return n, nil
 	}
 
-	u.log.Trace().
-		Str("file", file.Name()).
-		Bytes("data", data).
-		Err(err).
-		Msg("write failed")
+	logger := u.log.With().Str("file", fileName).Bytes("data", data).Logger()
+	logger.Trace().Err(err).Msg("write failed")
 
-	if errors.Is(err, os.ErrDeadlineExceeded) {
-		u.logWithSuppression(
-			fmt.Sprintf("writeWithTimeout_%s", file.Name()),
-			1000,
-			u.log,
-			err,
-			"write timed out: %s",
-			file.Name(),
-		)
-		err = nil
+	if errors.Is(err, os.ErrClosed) {
+		logger.Warn().Msg("file is closed, stopping writes")
+		return 0, err
+	} else if errors.Is(err, os.ErrDeadlineExceeded) {
+		if exceeded := u.logWithSuppression("writeWithTimeout_"+fileName, 10, &logger, err, "write timed out"); exceeded {
+			logger.Error().Msg("too many errors writing to the file, stopping writes")
+			return 0, err
+		}
+		return 0, nil
 	}
 
-	return
+	return n, err
 }
 
-func (u *UsbGadget) logWithSuppression(counterName string, every int, logger *zerolog.Logger, err error, msg string, args ...any) {
+func (u *UsbGadget) logWithSuppression(counterName string, every int, logger *zerolog.Logger, err error, msg string, args ...interface{}) bool {
 	u.logSuppressionLock.Lock()
-	defer u.logSuppressionLock.Unlock()
+	counter, ok := u.logSuppressionCounter[counterName] // returns 0, false if not found
+	counter++
+	u.logSuppressionCounter[counterName] = counter
+	u.logSuppressionLock.Unlock()
 
-	if _, ok := u.logSuppressionCounter[counterName]; !ok {
-		u.logSuppressionCounter[counterName] = 0
-	} else {
-		u.logSuppressionCounter[counterName]++
+	// log if it's the first time, and then every N times thereafter
+	if !ok || counter%every == 0 {
+		logger.Error().Str("counterName", counterName).Int("counter", counter).Err(err).Msgf(msg, args...)
+		return ok // return whether we've just exceeded the every interval
 	}
-
-	l := logger.With().Int("counter", u.logSuppressionCounter[counterName]).Logger()
-
-	if u.logSuppressionCounter[counterName]%every == 0 {
-		if err != nil {
-			l.Error().Err(err).Msgf(msg, args...)
-		} else {
-			l.Error().Msgf(msg, args...)
-		}
-	}
+	return false
 }
 
 func (u *UsbGadget) resetLogSuppressionCounter(counterName string) {
 	u.logSuppressionLock.Lock()
-	defer u.logSuppressionLock.Unlock()
-
-	if _, ok := u.logSuppressionCounter[counterName]; !ok {
-		u.logSuppressionCounter[counterName] = 0
-	}
+	delete(u.logSuppressionCounter, counterName)
+	u.logSuppressionLock.Unlock()
 }
 
 func unlockWithLog(lock *sync.Mutex, logger *zerolog.Logger, msg string, args ...any) {

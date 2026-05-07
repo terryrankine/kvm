@@ -89,12 +89,12 @@ func (u *UsbGadget) absMouseWriteHidFile(data []byte) error {
 
 	_, err := u.writeWithTimeout(u.absMouseHidFile, data)
 	if err != nil {
-		u.logWithSuppression("absMouseWriteHidFile", 100, u.log, err, "failed to write to hidg1")
-		u.absMouseHidFile.Close()
+		if cerr := u.absMouseHidFile.Close(); cerr != nil {
+			u.log.Error().Err(cerr).Msg("failed to close absolute mouse HID file after write error")
+		}
 		u.absMouseHidFile = nil
 		return err
 	}
-	u.resetLogSuppressionCounter("absMouseWriteHidFile")
 	return nil
 }
 
@@ -110,12 +110,9 @@ func (u *UsbGadget) AbsMouseReport(x int, y int, buttons uint8) error {
 		byte(y),      // Y Low Byte
 		byte(y >> 8), // Y High Byte
 	})
-	if err != nil {
-		return err
-	}
 
 	u.resetUserInputTime()
-	return nil
+	return err
 }
 
 func (u *UsbGadget) AbsMouseWheelReport(wheelY int8) error {

@@ -1409,15 +1409,16 @@ var (
 	keyboardMacroLock   sync.Mutex
 )
 
-func cancelKeyboardMacro() {
+func cancelKeyboardMacro() error {
 	keyboardMacroLock.Lock()
 	defer keyboardMacroLock.Unlock()
 
 	if keyboardMacroCancel != nil {
 		keyboardMacroCancel()
-		logger.Info().Msg("canceled keyboard macro")
 		keyboardMacroCancel = nil
+		jsonRpcLogger.Info().Msg("canceled keyboard macro")
 	}
+	return nil
 }
 
 func setKeyboardMacroCancel(cancel context.CancelFunc) {
@@ -1428,7 +1429,7 @@ func setKeyboardMacroCancel(cancel context.CancelFunc) {
 }
 
 func rpcExecuteKeyboardMacro(macro []hidrpc.KeyboardMacroStep) error {
-	cancelKeyboardMacro()
+	_ = cancelKeyboardMacro()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	setKeyboardMacroCancel(cancel)
@@ -1454,8 +1455,8 @@ func rpcExecuteKeyboardMacro(macro []hidrpc.KeyboardMacroStep) error {
 	return err
 }
 
-func rpcCancelKeyboardMacro() {
-	cancelKeyboardMacro()
+func rpcCancelKeyboardMacro() error {
+	return cancelKeyboardMacro()
 }
 
 var keyboardClearStateKeys = make([]byte, hidrpc.HidKeyBufferSize)

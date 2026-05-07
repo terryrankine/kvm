@@ -166,6 +166,7 @@ func (u *UsbGadget) Close() error {
 	// Cancel keyboard state context
 	if u.keyboardStateCancel != nil {
 		u.keyboardStateCancel()
+		u.keyboardStateCancel = nil
 	}
 
 	// Stop auto-release timer
