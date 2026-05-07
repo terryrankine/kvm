@@ -83,6 +83,7 @@ export interface WireguardConfig {
 
 export interface TLSState {
   mode: "self-signed" | "custom" | "disabled";
+  enforce: boolean;
   certificate?: string;
   privateKey?: string;
 }
@@ -116,6 +117,7 @@ function AccessContent({ setOpenDialog }: { setOpenDialog: (open: boolean) => vo
   const [deviceId, setDeviceId] = useState<string | null>(null);
 
   const [tlsMode, setTlsMode] = useState<string>("disabled");
+  const [tlsEnforce, setTlsEnforce] = useState<boolean>(false);
   const [tlsCert, setTlsCert] = useState<string>("");
   const [tlsKey, setTlsKey] = useState<string>("");
 
@@ -204,6 +206,7 @@ function AccessContent({ setOpenDialog }: { setOpenDialog: (open: boolean) => vo
       const tlsState = resp.result as TLSState;
 
       setTlsMode(tlsState.mode);
+      setTlsEnforce(tlsState.enforce ?? false);
       if (tlsState.certificate) setTlsCert(tlsState.certificate);
       if (tlsState.privateKey) setTlsKey(tlsState.privateKey);
     });
@@ -211,8 +214,8 @@ function AccessContent({ setOpenDialog }: { setOpenDialog: (open: boolean) => vo
 
   // Function to update TLS state - accepts a mode parameter
   const updateTlsState = useCallback(
-    (mode: string, cert?: string, key?: string) => {
-      const state = { mode } as TLSState;
+    (mode: string, enforce: boolean, cert?: string, key?: string) => {
+      const state = { mode, enforce: mode === "disabled" ? false : enforce } as TLSState;
       if (cert && key) {
         state.certificate = cert;
         state.privateKey = key;
@@ -288,10 +291,11 @@ function AccessContent({ setOpenDialog }: { setOpenDialog: (open: boolean) => vo
   // Handle TLS mode change
   const handleTlsModeChange = (value: string) => {
     setTlsMode(value);
+    if (value === "disabled") setTlsEnforce(false);
 
     // For "disabled" and "self-signed" modes, immediately apply the settings
     if (value !== "custom") {
-      updateTlsState(value);
+      updateTlsState(value, value === "disabled" ? false : tlsEnforce);
     }
   };
 
@@ -305,7 +309,7 @@ function AccessContent({ setOpenDialog }: { setOpenDialog: (open: boolean) => vo
 
   // Update the custom TLS settings button click handler
   const handleCustomTlsUpdate = () => {
-    updateTlsState(tlsMode, tlsCert, tlsKey);
+    updateTlsState(tlsMode, tlsEnforce, tlsCert, tlsKey);
   };
 
   // Fetch device ID and cloud state on component mount
@@ -900,6 +904,28 @@ function AccessContent({ setOpenDialog }: { setOpenDialog: (open: boolean) => vo
                   ]}
                 />
               </SettingsItem>
+
+              {(tlsMode === "self-signed" || tlsMode === "custom") && (
+                <SettingsItem
+                  title={$at("Enforce HTTPS (TLS)")}
+                  description={$at("Redirect all HTTP requests to HTTPS")}
+                >
+                  <Checkbox
+                    checked={tlsEnforce}
+                    onChange={e => {
+                      const enabled = e.target.checked;
+                      if (enabled) {
+                        // Warn user before enabling — using window.confirm for simplicity
+                        if (!window.confirm(
+                          $at("WARNING: This will restrict web interface access to HTTPS only.\n\nMake sure HTTPS mode is enabled and working before proceeding.\n\nEnable anyway?")
+                        )) return;
+                      }
+                      setTlsEnforce(enabled);
+                      updateTlsState(tlsMode, enabled, tlsCert || undefined, tlsKey || undefined);
+                    }}
+                  />
+                </SettingsItem>
+              )}
 
               {tlsMode === "custom" && (
                 <div className="mt-4 space-y-4">

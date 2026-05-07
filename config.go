@@ -104,6 +104,7 @@ type Config struct {
 	DisplayDimAfterSec   int                    `json:"display_dim_after_sec"`
 	DisplayOffAfterSec   int                    `json:"display_off_after_sec"`
 	TLSMode              string                 `json:"tls_mode"` // options: "self-signed", "user-defined", ""
+	TLSEnforce           bool                   `json:"tls_enforce"`
 	UsbConfig            *usbgadget.Config      `json:"usb_config"`
 	UsbDevices           *usbgadget.Devices     `json:"usb_devices"`
 	NetworkConfig        *network.NetworkConfig `json:"network_config"`
@@ -198,6 +199,7 @@ var defaultConfig = &Config{
 	DisplayDimAfterSec:   120,  // 2 minutes
 	DisplayOffAfterSec:   1800, // 30 minutes
 	TLSMode:              "",
+	TLSEnforce:           false,
 	ForceHpd:             false,
 	UsbEnhancedDetection: true,
 	JigglerEnabled:       false,
