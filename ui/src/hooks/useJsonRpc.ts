@@ -183,5 +183,19 @@ export function useJsonRpc(onRequest?: (payload: JsonRpcRequest) => void) {
     };
   }, [rpcDataChannel, onRequest]);
 
+  // When the data channel closes or is replaced, drain any pending callbacks
+  // with a connection-closed error so callers don't block and closures are GC'd.
+  useEffect(() => {
+    if (rpcDataChannel?.readyState === "open") return;
+    if (callbackStore.size === 0) return;
+    const error: JsonRpcErrorResponse = {
+      jsonrpc: "2.0",
+      error: { code: -32001, message: "RPC channel closed" },
+      id: -1,
+    };
+    callbackStore.forEach(cb => cb(error));
+    callbackStore.clear();
+  }, [rpcDataChannel]);
+
   return [send];
 }
