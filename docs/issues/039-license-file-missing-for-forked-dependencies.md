@@ -16,4 +16,4 @@ Run `go mod vendor` and `npm run build` with license extraction. Add a `LICENSES
 
 ## Status
 
-- [ ] TODO
+- [ ] TODO — Requires running `go-licenses save ./...` and `license-checker --out THIRD_PARTY_NOTICES.md` from the ui/ directory. Deferred — tooling not set up in CI. Go module cache contains license files; npm `node_modules/` is gitignored and regenerated at build time, so runtime attribution is via `npm run build` output.

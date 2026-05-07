@@ -16,4 +16,4 @@ Show a persistent banner or border highlight when keyboard capture is active. Ad
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED — `BottomBarPC.tsx` shows "KB Capture" button in blue (`rgba(22,152,217,1)`) when active, with "Active" or "Limited" sub-label. A toast notification fires on toggle. Visual confirmation is already present in the bottom bar. No code change required.

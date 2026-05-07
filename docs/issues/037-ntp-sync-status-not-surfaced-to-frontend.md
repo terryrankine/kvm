@@ -16,4 +16,4 @@ Add `ntpSynced: bool` and `ntpLastSync: timestamp` to the device status API resp
 
 ## Status
 
-- [ ] TODO
+- [ ] TODO — Feature enhancement. Requires reading NTP sync state from system (e.g., `/run/chrony/tracking` or `timedatectl show`) and adding `ntpSynced`/`ntpLastSync` fields to the device status API response, plus UI display. Deferred.
