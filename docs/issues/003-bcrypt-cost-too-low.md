@@ -16,4 +16,4 @@ Pin cost to `bcrypt.DefaultCost` (explicit constant). Use `bcrypt.CompareHashAnd
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY ACCEPTABLE — `web.go` uses `bcrypt.GenerateFromPassword(..., bcrypt.DefaultCost)` explicitly (cost 10) at all hash generation sites. All comparisons use `bcrypt.CompareHashAndPassword` which is already constant-time. No `==` comparisons on hash strings. Cost 10 is appropriate for a single-user embedded device that authenticates rarely. No code change required.
