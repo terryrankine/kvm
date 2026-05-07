@@ -76,7 +76,7 @@ func CallCtrlAction(action string, params map[string]any) (*CtrlResponse, error)
 
 	select {
 	case response := <-responseChan:
-		delete(ongoingRequests, seq)
+		delete(ongoingRequests, ctrlAction.Seq)
 		if response.Error != "" {
 			return nil, ErrorfL(
 				&scopedLogger,
@@ -87,7 +87,7 @@ func CallCtrlAction(action string, params map[string]any) (*CtrlResponse, error)
 		return response, nil
 	case <-time.After(5 * time.Second):
 		close(responseChan)
-		delete(ongoingRequests, seq)
+		delete(ongoingRequests, ctrlAction.Seq)
 		return nil, ErrorfL(&scopedLogger, "timeout waiting for response", nil)
 	}
 }
