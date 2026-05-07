@@ -16,4 +16,4 @@ Write to a `.tmp` file then `os.Rename()`. Add a test that kills the write proce
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — `config.go` `SaveConfig()`: write to `configPath+".tmp"`, sync, close, then `os.Rename()`. On error, tmp file is removed and original is untouched.
