@@ -16,4 +16,4 @@ Add a deferred `recover()` at the top of each handler that returns HTTP 500 with
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — Added `defer recover()` to both `handleOfflineUpdateUpload` and `handleOfflineUpdateApply` in `ota_offline.go`. Panics are logged at ERROR level and return HTTP 500 with a safe message instead of crashing the process.

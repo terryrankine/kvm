@@ -55,6 +55,12 @@ type offlineUpdateUploadResponse struct {
 //   - component: "app" or "system"
 //   - file:      .tar.gz archive containing <binary> and <binary>.sha256
 func handleOfflineUpdateUpload(c *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error().Interface("panic", r).Msg("panic in offline update upload handler")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
+	}()
 	if IsUpdatePending() {
 		c.JSON(http.StatusConflict, offlineUpdateUploadResponse{
 			Error: "an update is already in progress",
@@ -172,6 +178,12 @@ type offlineUpdateApplyRequest struct {
 // handleOfflineUpdateApply handles POST /ota/apply.
 // Applies a previously uploaded and staged offline update.
 func handleOfflineUpdateApply(c *gin.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error().Interface("panic", r).Msg("panic in offline update apply handler")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		}
+	}()
 	var req offlineUpdateApplyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
