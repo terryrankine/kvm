@@ -26,6 +26,7 @@ import {
   useVideoStore,
   useVpnStore,
 } from "@/hooks/stores";
+import notifications from "@/notifications";
 import { keys, modifiers } from "@/keyboardMappings";
 import BottomPopoverButton from "@components/PopoverButton";
 import MousePanel from "@components/MousePanel";
@@ -53,6 +54,9 @@ export default function BottomBarPC() {
   const setDisableFocusTrap = useUiStore(state => state.setDisableVideoFocusTrap);
   const toggleSidebarView = useUiStore(state => state.toggleSidebarView);
   const showPressedKeys = useSettingsStore(state => state.showPressedKeys);
+  const keyboardCaptureMode = useSettingsStore(state => state.keyboardCaptureMode);
+  const setKeyboardCaptureMode = useSettingsStore(state => state.setKeyboardCaptureMode);
+  const isKeyboardLockActive = useUiStore(state => state.isKeyboardLockActive);
   const forceHttp = useSettingsStore(state => state.forceHttp);
   const sidebarView = useUiStore(state => state.sidebarView);
   const peerConnectionState = useRTCStore(state => state.peerConnectionState);
@@ -149,6 +153,32 @@ export default function BottomBarPC() {
               Relayed by Cloudflare
             </div>
           )}
+          <div style={{ width: "1px", height: "100%" }}
+               className={"bg-[rgba(229,229,229,1)] dark:bg-[rgba(56,56,56,1)]"} />
+          <AntdButton
+            type={"text"}
+            size={"small"}
+            onClick={() => {
+              const newState = !keyboardCaptureMode;
+              setKeyboardCaptureMode(newState);
+              notifications.success(
+                newState ? $at("Keyboard Capture enabled") : $at("Keyboard Capture disabled"),
+              );
+            }}
+            style={{
+              height: "24px",
+              borderRadius: 0,
+              fontSize: "12px",
+              color: keyboardCaptureMode ? "rgba(22,152,217,1)" : "inherit",
+            }}
+          >
+            {$at("KB Capture")}
+            {keyboardCaptureMode && (
+              <span style={{ marginLeft: "4px", fontSize: "10px" }}>
+                {isKeyboardLockActive ? $at("Active") : $at("Limited")}
+              </span>
+            )}
+          </AntdButton>
           <div style={{ width: "1px", height: "100%" }}
                className={"bg-[rgba(229,229,229,1)] dark:bg-[rgba(56,56,56,1)]"} />
           <BottomPopoverButton

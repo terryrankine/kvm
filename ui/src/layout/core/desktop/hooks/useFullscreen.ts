@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 
+import { useSettingsStore, useUiStore } from "@/hooks/stores";
 import { usePointerLock } from "./usePointerLock";
 
 export const useFullscreen = (
@@ -8,63 +9,86 @@ export const useFullscreen = (
   isFullscreen?: number
 ) => {
   const isFullscreenEnabled = document.fullscreenEnabled;
+  const { setIsKeyboardLockActive } = useUiStore();
+  const keyboardCaptureMode = useSettingsStore(state => state.keyboardCaptureMode);
 
   const requestKeyboardLock = useCallback(async () => {
-    if (!videoElm.current) return;
+    if (!("keyboard" in navigator)) return;
 
-    if ("keyboard" in navigator) {
-      try {
-        // @ts-expect-error - keyboard lock API
-        await navigator.keyboard.lock();
-      } catch {
-        // ignore errors
-      }
+    try {
+      // @ts-expect-error - keyboard lock API
+      await navigator.keyboard.lock();
+      console.debug("Keyboard lock acquired");
+      setIsKeyboardLockActive(true);
+    } catch (e) {
+      console.debug("Keyboard lock not available:", e);
     }
-  }, [videoElm]);
+  }, [setIsKeyboardLockActive]);
 
-  const releaseKeyboardLock = useCallback(async () => {
-    if ("keyboard" in navigator) {
-      try {
-        // @ts-expect-error - keyboard lock API
-        await navigator.keyboard.unlock();
-      } catch {
-        // ignore errors
-      }
+  const releaseKeyboardLock = useCallback(() => {
+    if (!("keyboard" in navigator)) return;
+
+    try {
+      // @ts-expect-error - keyboard lock API
+      navigator.keyboard.unlock();
+      console.debug("Keyboard lock released");
+    } catch {
+      // ignore errors
     }
-  }, []);
+    setIsKeyboardLockActive(false);
+  }, [setIsKeyboardLockActive]);
 
   const requestFullscreen = useCallback(async () => {
-    console.log("requestFullscreen 1")
     if (!isFullscreenEnabled || !videoElm.current) return;
-    console.log("requestFullscreen 2")
 
-    await requestKeyboardLock();
     await pointerLock.requestPointerLock();
 
     await videoElm.current.requestFullscreen({
       navigationUI: "show",
     });
-  }, [isFullscreenEnabled, requestKeyboardLock, pointerLock, videoElm]);
+    // keyboard.lock() is called in the fullscreenchange handler after fullscreen is confirmed
+  }, [isFullscreenEnabled, pointerLock, videoElm]);
 
   useEffect(() => {
-    console.log("requestFullscreen 0",isFullscreen)
     if (isFullscreen) {
       requestFullscreen();
-    }else{
-      console.log("not requestFullscreen 0")
     }
   }, [isFullscreen]);
 
+  // Handle fullscreen enter/exit: acquire or release keyboard lock accordingly
   useEffect(() => {
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        releaseKeyboardLock();
+      if (document.fullscreenElement) {
+        // Entering fullscreen: always acquire keyboard lock
+        requestKeyboardLock();
+      } else {
+        // Exiting fullscreen: keep lock if capture mode is on, otherwise release
+        if (keyboardCaptureMode) {
+          requestKeyboardLock();
+        } else {
+          releaseKeyboardLock();
+        }
       }
     };
 
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
-  }, [releaseKeyboardLock]);
+    const abortController = new AbortController();
+    document.addEventListener("fullscreenchange", handleFullscreenChange, {
+      signal: abortController.signal,
+    });
+    return () => abortController.abort();
+  }, [releaseKeyboardLock, requestKeyboardLock, keyboardCaptureMode]);
+
+  // Sync keyboard lock with capture mode setting when not in fullscreen
+  useEffect(
+    function syncKeyboardCaptureMode() {
+      if (keyboardCaptureMode) {
+        requestKeyboardLock();
+      } else if (!document.fullscreenElement) {
+        releaseKeyboardLock();
+      }
+    },
+    [keyboardCaptureMode, requestKeyboardLock, releaseKeyboardLock],
+  );
 
   return {
     requestFullscreen,

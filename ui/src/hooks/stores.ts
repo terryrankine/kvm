@@ -78,6 +78,9 @@ interface UIState {
   setTerminalType: (enabled: UIState["terminalType"]) => void;
   otherSession:boolean;
   setOtherSession: (enabled: boolean) => void;
+
+  isKeyboardLockActive: boolean;
+  setIsKeyboardLockActive: (active: boolean) => void;
 }
 
 export const useUiStore = create<UIState>(set => ({
@@ -116,6 +119,9 @@ export const useUiStore = create<UIState>(set => ({
     }),
     otherSession:false,
     setOtherSession: enabled => set({ otherSession: enabled }),
+
+  isKeyboardLockActive: false,
+  setIsKeyboardLockActive: (active: boolean) => set({ isKeyboardLockActive: active }),
 
   isAttachedVirtualKeyboardVisible: true,
   setAttachedVirtualKeyboardVisibility: enabled =>
@@ -392,6 +398,9 @@ interface SettingsState {
   showPressedKeys: boolean;
   setShowPressedKeys: (show: boolean) => void;
 
+  keyboardCaptureMode: boolean;
+  setKeyboardCaptureMode: (enabled: boolean) => void;
+
   overrideCtrlV: boolean;
   setOverrideCtrlV: (enabled: boolean) => void;
 
@@ -460,6 +469,9 @@ export const useSettingsStore = create(
 
       showPressedKeys: true,
       setShowPressedKeys: show => set({ showPressedKeys: show }),
+
+      keyboardCaptureMode: false,
+      setKeyboardCaptureMode: (enabled: boolean) => set({ keyboardCaptureMode: enabled }),
 
       overrideCtrlV: false,
       setOverrideCtrlV: enabled => set({ overrideCtrlV: enabled }),
