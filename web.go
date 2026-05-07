@@ -208,6 +208,9 @@ func setupRouter(isSecureServer bool) *gin.Engine {
 		protected.DELETE("/auth/local-password", handleDeletePassword)
 		protected.POST("/storage/upload", handleUploadHttp)
 		protected.GET("/storage/download", handleDownloadHttp)
+
+		protected.POST("/ota/upload", handleOfflineUpdateUpload)
+		protected.POST("/ota/apply", handleOfflineUpdateApply)
 		protected.GET("/storage/sd-download", handleSDDownloadHttp)
 		protected.POST("/api/rpc", handleRpcRequest)
 		protected.GET("/terminal/ws", handleTerminalWS)

@@ -4,6 +4,7 @@ import { Button as AntdButton, Checkbox, Select } from "antd";
 import { useReactAt } from "i18n-auto-extractor/react";
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
 import { isMobile } from "react-device-detect";
+import { useShallow } from "zustand/shallow";
 
 import { useJsonRpc } from "@/hooks/useJsonRpc";
 import { useBootStorageType } from "@/hooks/useBootStorage";
@@ -16,6 +17,7 @@ import { InputFieldWithLabel } from "@components/InputField";
 import { UpdateState, useDeviceStore, useUpdateStore } from "@/hooks/stores";
 import notifications from "@/notifications";
 import { formatters } from "@/utils";
+import OfflineUpdateCard from "@components/OfflineUpdateCard";
 
 export interface SystemVersionInfo {
   local: { appVersion: string; systemVersion: string };
@@ -43,11 +45,10 @@ export default function SettingsVersion() {
   const [customUpdateBaseURL, setCustomUpdateBaseURL] = useState("");
   const [updateDownloadProxy, setUpdateDownloadProxy] = useState("");
 
-  const currentVersions = useDeviceStore(state => {
-    const { appVersion, systemVersion } = state;
-    if (!appVersion || !systemVersion) return null;
-    return { appVersion, systemVersion };
-  });
+  const { appVersion, systemVersion } = useDeviceStore(
+    useShallow(state => ({ appVersion: state.appVersion, systemVersion: state.systemVersion })),
+  );
+  const currentVersions = appVersion && systemVersion ? { appVersion, systemVersion } : null;
 
   useEffect(() => {
     send("getAutoUpdateState", {}, resp => {
@@ -247,6 +248,12 @@ export default function SettingsVersion() {
                 onUpdateDownloadProxyChange={setUpdateDownloadProxy}
                 onSaveUpdateDownloadProxy={applyUpdateDownloadProxy}
               />
+            </div>
+          )}
+
+          {!isBootFromSD && (
+            <div className="pt-2">
+              <OfflineUpdateCard />
             </div>
           )}
         </div>
