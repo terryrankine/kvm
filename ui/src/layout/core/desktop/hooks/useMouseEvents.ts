@@ -11,6 +11,7 @@ export const useMouseEvents = (
   pointerLock: ReturnType<typeof usePointerLock>,
   touchZoom?: {
     mobileScale: number;
+    mobileScaleRef?: React.MutableRefObject<number>;
     mobileTx: number;
     mobileTy: number;
     activeTouchPointers: React.MutableRefObject<Map<number, { x: number; y: number }>>;
@@ -109,7 +110,8 @@ export const useMouseEvents = (
         if (touchZoom) {
             const touchCount = touchZoom.activeTouchPointers.current.size;
             if (touchCount >= 2) return;
-            if (touchZoom.mobileScale > 1 && touchZoom.lastPanPoint.current) return;
+            const scale = touchZoom.mobileScaleRef?.current ?? touchZoom.mobileScale;
+            if (scale > 1 && touchZoom.lastPanPoint.current) return;
         }
       }
       if (isMobile) e.preventDefault();
