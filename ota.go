@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -1200,6 +1201,7 @@ type OTAState struct {
 }
 
 var otaState = OTAState{}
+var otaStateMu sync.RWMutex
 
 func triggerOTAStateUpdate() {
 	go func() {
@@ -1208,7 +1210,10 @@ func triggerOTAStateUpdate() {
 			logger.Info().Msg("No active RPC session, skipping update state update")
 			return
 		}
-		writeJSONRPCEvent("otaState", otaState, sess)
+		otaStateMu.RLock()
+		snapshot := otaState
+		otaStateMu.RUnlock()
+		writeJSONRPCEvent("otaState", snapshot, sess)
 	}()
 }
 
@@ -1238,19 +1243,21 @@ func TryUpdate(ctx context.Context, deviceId string, includePreRelease bool) err
 		Logger()
 
 	scopedLogger.Info().Msg("Trying to update...")
+	otaStateMu.Lock()
 	if otaState.Updating {
+		otaStateMu.Unlock()
 		return fmt.Errorf("update already in progress")
 	}
+	otaState = OTAState{Updating: true}
+	otaStateMu.Unlock()
 
 	cleanupUpdateTempFiles(&scopedLogger)
-
-	otaState = OTAState{
-		Updating: true,
-	}
 	triggerOTAStateUpdate()
 
 	defer func() {
+		otaStateMu.Lock()
 		otaState.Updating = false
+		otaStateMu.Unlock()
 		triggerOTAStateUpdate()
 	}()
 
@@ -1526,6 +1533,8 @@ func GetUpdateStatus(ctx context.Context, deviceId string, includePreRelease boo
 }
 
 func IsUpdatePending() bool {
+	otaStateMu.RLock()
+	defer otaStateMu.RUnlock()
 	return otaState.Updating
 }
 

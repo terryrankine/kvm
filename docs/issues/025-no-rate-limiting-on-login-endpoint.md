@@ -16,4 +16,4 @@ Add exponential backoff or a fixed delay after failed attempts (e.g., 1s after 3
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED — `ratelimit.go` implements per-IP `RecordFailure`/`RecordSuccess`. Both `handleLogin` (`web.go:525,530`) and the metrics auth path (`web.go:644,649`) call these functions. No code change required.

@@ -16,4 +16,4 @@ Check and log `chmod` errors. Add a test with a read-only target.
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED — All `os.Chmod()` calls in the codebase (`native.go`, `native_audio.go`, `native_display.go`, `native_vpn.go`, `ota.go`, `ota_offline.go`) already check and handle the error return. No code change required.

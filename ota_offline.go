@@ -223,13 +223,15 @@ func handleOfflineUpdateApply(c *gin.Context) {
 // For app updates the staged binary is already in place; the boot sequence
 // picks it up on next start.
 func applyOfflineUpdate(ctx context.Context, component string) error {
+	otaStateMu.Lock()
 	if otaState.Updating {
+		otaStateMu.Unlock()
 		return fmt.Errorf("update already in progress")
 	}
-
 	otaState.Updating = true
 	now := time.Now()
 	otaState.MetadataFetchedAt = &now
+	otaStateMu.Unlock()
 	triggerOTAStateUpdate()
 
 	if component == "system" {

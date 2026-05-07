@@ -16,4 +16,4 @@ Limit macro payloads to a reasonable maximum (e.g., 1000 keystrokes). Return an 
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED — `config.go` defines `MaxStepsPerMacro = 10` and `KeyboardMacro.Validate()` enforces it (`len(m.Steps) > MaxStepsPerMacro` → error). All macro save paths call `macro.Validate()` before accepting the payload. No code change required.
