@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type Logger struct {
@@ -24,6 +26,13 @@ type Logger struct {
 
 const (
 	defaultLogLevel = zerolog.ErrorLevel
+
+	// AppLogPath is the path to the rotating application log file.
+	// The directory (/userdata/picokvm) must exist at runtime; if it does not,
+	// the file writer is silently omitted so the app still boots on dev hosts.
+	AppLogPath      = "/userdata/picokvm/app.log"
+	appLogMaxSizeMB = 50 // MB before rotation
+	appLogBackups   = 1  // keep one backup after rotation
 )
 
 type logOutput struct {
@@ -44,6 +53,25 @@ func (w *logOutput) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// newDefaultLogOutput builds the multi-writer used by the root logger.
+// It always includes the console and SSE writers.  When the log directory
+// exists on-device, it also writes to a lumberjack-managed rotating file.
+func newDefaultLogOutput() io.Writer {
+	writers := []io.Writer{consoleLogOutput, fileLogOutput}
+
+	dir := filepath.Dir(AppLogPath)
+	if _, err := os.Stat(dir); err == nil {
+		writers = append(writers, &lumberjack.Logger{
+			Filename:   AppLogPath,
+			MaxSize:    appLogMaxSizeMB,
+			MaxBackups: appLogBackups,
+			Compress:   false,
+		})
+	}
+
+	return zerolog.MultiLevelWriter(writers...)
+}
+
 var (
 	consoleLogOutput io.Writer = zerolog.ConsoleWriter{
 		Out:           os.Stdout,
@@ -61,7 +89,7 @@ var (
 		},
 	}
 	fileLogOutput    io.Writer = &logOutput{mu: &sync.Mutex{}}
-	defaultLogOutput           = zerolog.MultiLevelWriter(consoleLogOutput, fileLogOutput)
+	defaultLogOutput           = newDefaultLogOutput()
 
 	zerologLevels = map[string]zerolog.Level{
 		"DISABLE": zerolog.Disabled,

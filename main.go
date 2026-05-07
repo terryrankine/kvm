@@ -30,7 +30,7 @@ func Main() {
 	minRequiredSystemVersion := semver.MustParse("0.1.4")
 	isNewEnoughSystem := systemVersionLocal != nil && !systemVersionLocal.LessThan(minRequiredSystemVersion)
 
-	logger.Info().
+	logger.Log().
 		Interface("system_version", systemVersionLocal).
 		Interface("app_version", appVersionLocal).
 		Msg("starting KVM")
