@@ -294,6 +294,11 @@ export interface VideoState {
   clientHeight: number;
   setClientSize: (width: number, height: number) => void;
   setSize: (width: number, height: number) => void;
+  streamContentX1: number;
+  streamContentX2: number;
+  streamContentY1: number;
+  streamContentY2: number;
+  setStreamContentBounds: (x1: number, y1: number, x2: number, y2: number) => void;
   hdmiState: "ready" | "no_signal" | "no_lock" | "out_of_range" | "connecting";
   setHdmiState: (state: {
     ready: boolean;
@@ -314,11 +319,14 @@ export const useVideoStore = create<VideoState>(set => ({
   clientWidth: 0,
   clientHeight: 0,
 
-  // The video element's client size
   setClientSize: (clientWidth, clientHeight) => set({ clientWidth, clientHeight }),
-
-  // Resolution
   setSize: (width, height) => set({ width, height }),
+
+  streamContentX1: 0,
+  streamContentX2: 0,
+  streamContentY1: 0,
+  streamContentY2: 0,
+  setStreamContentBounds: (x1, y1, x2, y2) => set({ streamContentX1: x1, streamContentY1: y1, streamContentX2: x2, streamContentY2: y2 }),
 
   hdmiState: "connecting",
   setHdmiState: state => {

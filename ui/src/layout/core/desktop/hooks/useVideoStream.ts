@@ -13,7 +13,7 @@ export const useVideoStream = (
   const peerConnectionState = useRTCStore(state => state.peerConnectionState);
   const setPeerConnectionState = useRTCStore(state => state.setPeerConnectionState);
   const forceHttp = useSettingsStore(state => state.forceHttp);
-  const { setClientSize: setVideoClientSize, setSize: setVideoSize } = useVideoStore();
+  const { setClientSize: setVideoClientSize, setSize: setVideoSize, setStreamContentBounds } = useVideoStore();
   const jmuxerRef = useRef<any>(null);
 
   const updateVideoSizeStore = useCallback((videoElm: HTMLVideoElement) => {
@@ -21,12 +21,54 @@ export const useVideoStream = (
     setVideoSize(videoElm.videoWidth, videoElm.videoHeight);
   }, [setVideoClientSize, setVideoSize]);
 
+  const detectStreamBars = useCallback((videoElm: HTMLVideoElement) => {
+    const vw = videoElm.videoWidth;
+    const vh = videoElm.videoHeight;
+    if (!vw || !vh) return;
+    try {
+      const threshold = 25;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = vw;
+      canvas.height = 1;
+      ctx.drawImage(videoElm, 0, Math.floor(vh / 2), vw, 1, 0, 0, vw, 1);
+      const rowData = ctx.getImageData(0, 0, vw, 1).data;
+
+      let x1 = 0, x2 = vw - 1;
+      for (let x = 0; x < vw; x++) {
+        if (rowData[x*4] > threshold || rowData[x*4+1] > threshold || rowData[x*4+2] > threshold) { x1 = x; break; }
+      }
+      for (let x = vw - 1; x >= 0; x--) {
+        if (rowData[x*4] > threshold || rowData[x*4+1] > threshold || rowData[x*4+2] > threshold) { x2 = x; break; }
+      }
+
+      canvas.width = 1;
+      canvas.height = vh;
+      ctx.drawImage(videoElm, Math.floor(vw / 2), 0, 1, vh, 0, 0, 1, vh);
+      const colData = ctx.getImageData(0, 0, 1, vh).data;
+
+      let y1 = 0, y2 = vh - 1;
+      for (let y = 0; y < vh; y++) {
+        if (colData[y*4] > threshold || colData[y*4+1] > threshold || colData[y*4+2] > threshold) { y1 = y; break; }
+      }
+      for (let y = vh - 1; y >= 0; y--) {
+        if (colData[y*4] > threshold || colData[y*4+1] > threshold || colData[y*4+2] > threshold) { y2 = y; break; }
+      }
+
+      setStreamContentBounds(x1, y1, x2, y2);
+    } catch (_) {}
+  }, [setStreamContentBounds]);
+
   const markAsPlaying = useCallback(() => {
     setIsPlaying(true);
     if (videoElm.current) {
       updateVideoSizeStore(videoElm.current);
+      const el = videoElm.current;
+      setTimeout(() => detectStreamBars(el), 1000);
     }
-  }, [updateVideoSizeStore, videoElm]);
+  }, [updateVideoSizeStore, detectStreamBars, videoElm]);
 
   const onVideoPlaying = useCallback(() => {
     markAsPlaying();
