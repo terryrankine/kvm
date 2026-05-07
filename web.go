@@ -21,6 +21,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	gin_logger "github.com/gin-contrib/logger"
+	"github.com/gin-gonic/contrib/secure"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/pion/webrtc/v4"
@@ -74,7 +75,7 @@ var cachableFileExtensions = []string{
 	".jpg", ".jpeg", ".png", ".svg", ".gif", ".webp", ".ico", ".woff2",
 }
 
-func setupRouter() *gin.Engine {
+func setupRouter(isSecureServer bool) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	gin.DisableConsoleColor()
 	r := gin.Default()
@@ -83,6 +84,22 @@ func setupRouter() *gin.Engine {
 			return *ginLogger
 		}),
 	))
+
+	if !isSecureServer && config.TLSEnforce {
+		r.Use(secure.Secure(secure.Options{
+			AllowedHosts:          []string{},
+			SSLRedirect:           true,
+			SSLHost:               "",
+			SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
+			STSSeconds:            0,
+			STSIncludeSubdomains:  false,
+			FrameDeny:             false,
+			ContentTypeNosniff:    true,
+			BrowserXssFilter:      true,
+			ContentSecurityPolicy: "default-src 'self'",
+		}))
+		return r
+	}
 
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {
@@ -137,7 +154,9 @@ func setupRouter() *gin.Engine {
 	r.POST("/device/setup", handleSetup)
 
 	// A Prometheus metrics endpoint.
-	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	// Requires auth (cookie or basic auth) when password mode is enabled,
+	// open when localAuthMode is noPassword (consistent with other endpoints).
+	r.GET("/metrics", metricsAuthMiddleware(), gin.WrapH(promhttp.Handler()))
 
 	// Developer mode protected routes
 	developerModeRouter := r.Group("/developer/")
@@ -534,6 +553,39 @@ func sendErrorJsonThenAbort(c *gin.Context, status int, message string) {
 	c.Abort()
 }
 
+// metricsAuthMiddleware authenticates the /metrics endpoint using either the
+// session cookie or HTTP basic auth (for Prometheus scrape configs). When
+// localAuthMode is noPassword, all requests are allowed through — consistent
+// with every other endpoint on the device.
+func metricsAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if config.LocalAuthMode == "noPassword" {
+			c.Next()
+			return
+		}
+
+		// Try cookie auth first (browser access)
+		authToken, err := c.Cookie("authToken")
+		if err == nil && authToken == config.LocalAuthToken && authToken != "" {
+			c.Next()
+			return
+		}
+
+		// Fall back to basic auth (Prometheus scraper)
+		_, password, ok := c.Request.BasicAuth()
+		if ok {
+			if err := bcrypt.CompareHashAndPassword([]byte(config.HashedPassword), []byte(password)); err == nil {
+				c.Next()
+				return
+			}
+		}
+
+		c.Header("WWW-Authenticate", `Basic realm="JetKVM Metrics"`)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.Abort()
+	}
+}
+
 func basicAuthProtectedMiddleware(requireDeveloperMode bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if requireDeveloperMode {
@@ -581,12 +633,12 @@ func basicAuthProtectedMiddleware(requireDeveloperMode bool) gin.HandlerFunc {
 	}
 }
 
-func RunWebServer() {
-	r := setupRouter()
+var (
+	updateWebRouter = make(chan struct{})
+)
 
-	// Determine the binding address based on the config
+func getBindAddress(listenPort int) string {
 	var bindAddress string
-	listenPort := 80 // default port
 	useIPv4 := config.NetworkConfig.IPv4Mode.String != "disabled"
 	useIPv6 := config.NetworkConfig.IPv6Mode.String != "disabled"
 
@@ -607,11 +659,35 @@ func RunWebServer() {
 			bindAddress = fmt.Sprintf("[::]:%d", listenPort)
 		}
 	}
+	return bindAddress
+}
+
+func RunWebServer() {
+	r := setupRouter(false)
+
+	bindAddress := getBindAddress(80)
 
 	logger.Info().Str("bindAddress", bindAddress).Bool("loopbackOnly", config.LocalLoopbackOnly).Msg("Starting web server")
-	if err := r.Run(bindAddress); err != nil {
+	server := &http.Server{
+		Addr:    bindAddress,
+		Handler: r,
+	}
+
+	go func() {
+		for range updateWebRouter {
+			if config.TLSEnforce {
+				time.Sleep(3 * time.Second)
+			}
+			server.Handler = setupRouter(false)
+		}
+	}()
+
+	err := server.ListenAndServe()
+	if !errors.Is(err, http.ErrServerClosed) {
 		panic(err)
 	}
+
+	close(updateWebRouter)
 }
 
 func handleDevice(c *gin.Context) {
