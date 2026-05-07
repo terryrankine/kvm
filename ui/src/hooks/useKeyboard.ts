@@ -6,7 +6,7 @@ import { useJsonRpc } from "@/hooks/useJsonRpc";
 import { keys, modifiers } from "@/keyboardMappings";
 import { chars } from "@/keyboardLayouts";
 
-export type MacroStep = { keys: string[] | null; modifiers: string[] | null; delay: number };
+export interface MacroStep { keys: string[] | null; modifiers: string[] | null; delay: number }
 
 /**
  * Converts a text string into a sequence of key-press steps using the given keyboard layout.

@@ -59,7 +59,9 @@ export const useVideoStream = (
       }
 
       setStreamContentBounds(x1, y1, x2, y2);
-    } catch (_) {}
+    } catch {
+      // canvas taint or security error — skip bar detection
+    }
   }, [setStreamContentBounds]);
 
   const markAsPlaying = useCallback(() => {
