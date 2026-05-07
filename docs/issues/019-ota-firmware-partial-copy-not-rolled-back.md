@@ -16,4 +16,4 @@ Write firmware to a `.tmp` file then `os.Rename()` atomically. Add a test that k
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — `offlineCopyFile` in `ota_offline.go` now writes to `dst+".tmp"`, syncs, closes, then `os.Rename` atomically. On any error the .tmp file is removed and `dst` is left untouched. Same-filesystem case already used `os.Rename` which is atomic.

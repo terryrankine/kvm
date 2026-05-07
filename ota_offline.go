@@ -436,20 +436,37 @@ func offlineHashFile(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// offlineCopyFile copies src to dst (used when os.Rename fails across filesystems).
+// offlineCopyFile copies src to dst atomically via a .tmp file then rename.
+// Used when os.Rename fails across filesystems. A partial write leaves no
+// residue at dst.
 func offlineCopyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.Create(dst)
+
+	tmp := dst + ".tmp"
+	out, err := os.Create(tmp)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+
 	if _, err := out.ReadFrom(in); err != nil {
+		out.Close()
+		os.Remove(tmp)
 		return err
 	}
-	return out.Sync()
+	if err := out.Sync(); err != nil {
+		out.Close()
+		os.Remove(tmp)
+		return err
+	}
+	out.Close()
+
+	if err := os.Rename(tmp, dst); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
 }
