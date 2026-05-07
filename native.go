@@ -36,7 +36,12 @@ var seq int32 = 1
 
 var ongoingRequests = make(map[int32]chan *CtrlResponse)
 
+// lock serializes outgoing ctrl messages and protects seq/ctrlSocketConn writes.
 var lock = &sync.Mutex{}
+
+// requestsLock protects ongoingRequests independently so handleCtrlClient can
+// look up pending channels without holding lock during the I/O wait.
+var requestsLock = &sync.RWMutex{}
 
 var (
 	videoCmd     *exec.Cmd
@@ -45,20 +50,25 @@ var (
 
 func CallCtrlAction(action string, params map[string]any) (*CtrlResponse, error) {
 	lock.Lock()
-	defer lock.Unlock()
 	ctrlAction := CtrlAction{
 		Action: action,
 		Seq:    seq,
 		Params: params,
 	}
 
-	responseChan := make(chan *CtrlResponse)
+	// Buffered so handleCtrlClient never blocks on a slow/cancelled caller.
+	responseChan := make(chan *CtrlResponse, 1)
+	requestsLock.Lock()
 	ongoingRequests[seq] = responseChan
+	requestsLock.Unlock()
 	seq++
 
 	jsonData, err := json.Marshal(ctrlAction)
 	if err != nil {
+		requestsLock.Lock()
 		delete(ongoingRequests, ctrlAction.Seq)
+		requestsLock.Unlock()
+		lock.Unlock()
 		return nil, fmt.Errorf("error marshaling ctrl action: %w", err)
 	}
 
@@ -70,13 +80,21 @@ func CallCtrlAction(action string, params map[string]any) (*CtrlResponse, error)
 
 	err = WriteCtrlMessage(jsonData)
 	if err != nil {
+		requestsLock.Lock()
 		delete(ongoingRequests, ctrlAction.Seq)
+		requestsLock.Unlock()
+		lock.Unlock()
 		return nil, ErrorfL(&scopedLogger, "error writing ctrl message", err)
 	}
 
+	// Release lock before blocking so other callers can proceed.
+	lock.Unlock()
+
 	select {
 	case response := <-responseChan:
+		requestsLock.Lock()
 		delete(ongoingRequests, ctrlAction.Seq)
+		requestsLock.Unlock()
 		if response.Error != "" {
 			return nil, ErrorfL(
 				&scopedLogger,
@@ -86,8 +104,9 @@ func CallCtrlAction(action string, params map[string]any) (*CtrlResponse, error)
 		}
 		return response, nil
 	case <-time.After(5 * time.Second):
-		close(responseChan)
+		requestsLock.Lock()
 		delete(ongoingRequests, ctrlAction.Seq)
+		requestsLock.Unlock()
 		return nil, ErrorfL(&scopedLogger, "timeout waiting for response", nil)
 	}
 }
@@ -177,12 +196,13 @@ func handleCtrlClient(conn net.Conn) {
 		Logger()
 
 	scopedLogger.Info().Msg("native ctrl socket client connected")
+	lock.Lock()
 	if ctrlSocketConn != nil {
 		scopedLogger.Debug().Msg("closing existing native socket connection")
 		ctrlSocketConn.Close()
 	}
-
 	ctrlSocketConn = conn
+	lock.Unlock()
 
 	// Restore HDMI EDID if applicable
 	go restoreHdmiEdid()
@@ -205,7 +225,9 @@ func handleCtrlClient(conn net.Conn) {
 		scopedLogger.Trace().Interface("data", ctrlResp).Msg("ctrl sock msg")
 
 		if ctrlResp.Seq != 0 {
+			requestsLock.RLock()
 			responseChan, ok := ongoingRequests[ctrlResp.Seq]
+			requestsLock.RUnlock()
 			if ok {
 				responseChan <- &ctrlResp
 			}

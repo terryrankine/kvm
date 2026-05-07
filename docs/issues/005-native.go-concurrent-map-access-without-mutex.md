@@ -16,4 +16,4 @@ Protect both with a `sync.Mutex` (or replace map with `sync.Map`). Run `go test 
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — Added `requestsLock sync.RWMutex` to protect `ongoingRequests` separately from `lock`. `CallCtrlAction` now releases `lock` before blocking on the response channel so `handleCtrlClient` can acquire `requestsLock.RLock()` without deadlocking. `ctrlSocketConn` write in `handleCtrlClient` now under `lock.Lock/Unlock`. Response channels are buffered (size 1) to prevent `handleCtrlClient` from blocking on a cancelled caller.
