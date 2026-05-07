@@ -16,4 +16,4 @@ Protect gadget state reads/writes with a mutex. Add `-race` test.
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — Added `callbackLock sync.RWMutex` to `UsbGadget` struct. All `SetOn*` methods write under `callbackLock.Lock()`. All callback invocation sites in `hid_keyboard.go`, `hid_mouse_absolute.go`, `hid_mouse_relative.go` capture the pointer under `callbackLock.RLock()` before checking nil and invoking.

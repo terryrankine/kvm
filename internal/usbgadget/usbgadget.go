@@ -89,6 +89,7 @@ type UsbGadget struct {
 	tx     *UsbGadgetTransaction
 	txLock sync.Mutex
 
+	callbackLock          sync.RWMutex
 	onKeyboardStateChange *func(state KeyboardState)
 	onHidDeviceMissing    *func(device string, err error)
 	onKeysDownChange      *func(state KeysDownState)

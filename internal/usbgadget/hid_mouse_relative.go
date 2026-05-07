@@ -73,8 +73,11 @@ func (u *UsbGadget) relMouseWriteHidFile(data []byte) error {
 					Err(err).
 					Msg("HID device file missing, gadget may need reinitialization")
 
-				if u.onHidDeviceMissing != nil {
-					(*u.onHidDeviceMissing)("relative_mouse", err)
+				u.callbackLock.RLock()
+				cbMiss := u.onHidDeviceMissing
+				u.callbackLock.RUnlock()
+				if cbMiss != nil {
+					(*cbMiss)("relative_mouse", err)
 				}
 			}
 			return fmt.Errorf("failed to open hidg2: %w", err)

@@ -137,17 +137,24 @@ func (u *UsbGadget) updateKeyboardState(state byte) {
 	u.keyboardState = state
 	logger.Trace().Msg("keyboardState updated")
 
-	if cb := u.onKeyboardStateChange; cb != nil {
+	u.callbackLock.RLock()
+	cb := u.onKeyboardStateChange
+	u.callbackLock.RUnlock()
+	if cb != nil {
 		go (*cb)(getKeyboardState(state)) // this enqueues to the outgoing hidrpc queue via usb.go → currentSession.reportHidRPCKeyboardLedState(...)
 	}
 }
 
 func (u *UsbGadget) SetOnKeyboardStateChange(f func(state KeyboardState)) {
+	u.callbackLock.Lock()
 	u.onKeyboardStateChange = &f
+	u.callbackLock.Unlock()
 }
 
 func (u *UsbGadget) SetOnHidDeviceMissing(f func(device string, err error)) {
+	u.callbackLock.Lock()
 	u.onHidDeviceMissing = &f
+	u.callbackLock.Unlock()
 }
 
 func (u *UsbGadget) GetKeyboardState() KeyboardState {
@@ -165,11 +172,15 @@ func (u *UsbGadget) GetKeysDownState() KeysDownState {
 }
 
 func (u *UsbGadget) SetOnKeysDownChange(f func(state KeysDownState)) {
+	u.callbackLock.Lock()
 	u.onKeysDownChange = &f
+	u.callbackLock.Unlock()
 }
 
 func (u *UsbGadget) SetOnKeepAliveReset(f func()) {
+	u.callbackLock.Lock()
 	u.onKeepAliveReset = &f
+	u.callbackLock.Unlock()
 }
 
 func (u *UsbGadget) ResetRollover() {
@@ -212,8 +223,11 @@ func (u *UsbGadget) cancelAutoRelease(key byte) {
 		delete(u.kbdAutoReleaseTimers, key)
 
 		// Reset keep-alive timing when key is actually released
-		if cb := u.onKeepAliveReset; cb != nil {
-			go (*cb)()
+		u.callbackLock.RLock()
+		cbKA := u.onKeepAliveReset
+		u.callbackLock.RUnlock()
+		if cbKA != nil {
+			go (*cbKA)()
 		}
 	}
 }
@@ -324,8 +338,11 @@ func (u *UsbGadget) openKeyboardHidFileUnderMutex() error {
 				Str("device_name", "keyboard").
 				Err(err).
 				Msg("HID device file missing, gadget may need reinitialization")
-			if u.onHidDeviceMissing != nil {
-				(*u.onHidDeviceMissing)("keyboard", err)
+			u.callbackLock.RLock()
+			cbMiss := u.onHidDeviceMissing
+			u.callbackLock.RUnlock()
+			if cbMiss != nil {
+				(*cbMiss)("keyboard", err)
 			}
 		}
 		return fmt.Errorf("failed to open keyboard on hidg0: %w", err)
@@ -381,8 +398,11 @@ func (u *UsbGadget) UpdateKeysDown(modifier byte, keys []byte) KeysDownState {
 	u.keysDownState = state
 	u.keyboardStateLock.Unlock()
 
-	if cb := u.onKeysDownChange; cb != nil {
-		go (*cb)(state) // this enqueues to the outgoing hidrpc queue via usb.go → currentSession.enqueueKeysDownState(...)
+	u.callbackLock.RLock()
+	cbKD := u.onKeysDownChange
+	u.callbackLock.RUnlock()
+	if cbKD != nil {
+		go (*cbKD)(state) // this enqueues to the outgoing hidrpc queue via usb.go → currentSession.enqueueKeysDownState(...)
 	}
 	return state
 }
