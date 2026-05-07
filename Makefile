@@ -2,7 +2,8 @@ BRANCH    := $(shell git rev-parse --abbrev-ref HEAD)
 BUILDDATE := $(shell date -u +%FT%T%z)
 BUILDTS   := $(shell date -u +%s)
 REVISION  := $(shell git rev-parse HEAD)
-VERSION_DEV := 0.1.2-dev
+GIT_SHORT   := $(shell git rev-parse --short HEAD)
+VERSION_DEV := 0.1.2-dev+$(GIT_SHORT)
 VERSION := 0.1.2
 
 PROMETHEUS_TAG := github.com/prometheus/common/version
