@@ -16,4 +16,4 @@ Pass `r.Context()` to the streaming goroutine and check for cancellation. Add a 
 
 ## Status
 
-- [ ] TODO
+- [x] NO LEAK — `handleVideoStream` uses `c.Request.Context()` in the select; client disconnect triggers `ctx.Done()` and the function returns, at which point `defer videoBroadcaster.Unsubscribe(id)` fires. No goroutine spawned. No code change required.

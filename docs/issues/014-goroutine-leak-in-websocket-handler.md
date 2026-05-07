@@ -16,4 +16,4 @@ Use a `context.Context` cancellation or `close` channel. Ensure the read gorouti
 
 ## Status
 
-- [ ] TODO
+- [x] NO LEAK — `handleWebRTCSignalWsMessages` uses `context.WithCancel`; the ping goroutine checks `runCtx.Err()` and returns on cancellation; `cancelRun()` is deferred so it fires when the function exits. The main read loop returns on any read error. No goroutine leak. No code change required.

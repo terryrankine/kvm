@@ -16,4 +16,4 @@ Audit what is persisted. Move security-sensitive values (tokens, credentials) to
 
 ## Status
 
-- [ ] TODO
+- [x] FALSE POSITIVE — Audited `useSettingsStore` in `stores.ts`. Persisted fields are UI preferences only: language, mouseMode, isCursorHidden, displayRotation, backlightSettings, timeZone, LED modes, keyboardLayout, scrollThrottling, showPressedKeys, videoSaturation/Brightness/Contrast, forceHttp, etc. The `authToken` credential is managed as an HttpOnly server-set cookie and is not in localStorage. No credentials stored in localStorage. No code change required.

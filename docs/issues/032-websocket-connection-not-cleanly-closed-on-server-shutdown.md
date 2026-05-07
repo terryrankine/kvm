@@ -16,4 +16,4 @@ On shutdown, iterate active WebSocket connections and send `CloseNormalClosure` 
 
 ## Status
 
-- [ ] TODO
+- [ ] TODO — `main.go` exits on SIGTERM without calling `httpServer.Shutdown()` or sending WS close frames. Requires: exposing the `http.Server` from `startWebServer`, tracking active WS connections in a registry, sending `StatusNormalClosure` on shutdown signal, then calling `server.Shutdown(ctx)`. Deferred — significant refactor.
