@@ -15,6 +15,7 @@ export const useVideoStream = (
   const forceHttp = useSettingsStore(state => state.forceHttp);
   const { setClientSize: setVideoClientSize, setSize: setVideoSize, setStreamContentBounds } = useVideoStore();
   const jmuxerRef = useRef<any>(null);
+  const detectBarsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateVideoSizeStore = useCallback((videoElm: HTMLVideoElement) => {
     setVideoClientSize(videoElm.clientWidth, videoElm.clientHeight);
@@ -66,9 +67,22 @@ export const useVideoStream = (
     if (videoElm.current) {
       updateVideoSizeStore(videoElm.current);
       const el = videoElm.current;
-      setTimeout(() => detectStreamBars(el), 1000);
+      if (detectBarsTimerRef.current !== null) clearTimeout(detectBarsTimerRef.current);
+      detectBarsTimerRef.current = setTimeout(() => {
+        detectBarsTimerRef.current = null;
+        detectStreamBars(el);
+      }, 1000);
     }
   }, [updateVideoSizeStore, detectStreamBars, videoElm]);
+
+  useEffect(() => {
+    return () => {
+      if (detectBarsTimerRef.current !== null) {
+        clearTimeout(detectBarsTimerRef.current);
+        detectBarsTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const onVideoPlaying = useCallback(() => {
     markAsPlaying();

@@ -16,4 +16,4 @@ Store the timeout ID and clear it in the `useEffect` cleanup. Add a test that un
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — Added `detectBarsTimerRef` in `useVideoStream.ts`. `markAsPlaying` stores the timeout ID and cancels any previous timer before scheduling a new one. A `useEffect` cleanup clears the timer on unmount so `detectStreamBars` never fires after the component is gone.
