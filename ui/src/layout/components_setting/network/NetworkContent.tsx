@@ -18,6 +18,7 @@ import {
   TimeSyncMode,
   useNetworkStateStore,
 } from "@/hooks/stores";
+import { useShallow } from "zustand/shallow";
 import { useJsonRpc } from "@/hooks/useJsonRpc";
 import { Button } from "@components/Button";
 import { GridCard } from "@components/Card";
@@ -33,6 +34,7 @@ import AutoHeight from "@components/AutoHeight";
 import DhcpLeaseCard from "@components/Network/DhcpLeaseCard";
 import { SettingsItem } from "@components/Settings/SettingsView";
 import { text_primary_color } from "@/layout/theme_color";
+import CustomTimeConfigurationCard from "@components/CustomTimeConfigurationCard";
 
 dayjs.extend(relativeTime);
 
@@ -45,6 +47,11 @@ const defaultNetworkSettings: NetworkSettings = {
   lldp_tx_tlvs: [],
   mdns_mode: "unknown",
   time_sync_mode: "unknown",
+  time_sync_ordering: [],
+  time_sync_parallel: 4,
+  time_sync_disable_fallback: false,
+  time_sync_ntp_servers: [],
+  time_sync_http_urls: [],
 };
 
 export function LifeTimeLabel({ lifetime }: { lifetime: string }) {
@@ -77,10 +84,19 @@ export function LifeTimeLabel({ lifetime }: { lifetime: string }) {
 export default function SettingsNetwork() {
   const { $at } = useReactAt();
   const [send] = useJsonRpc();
-  const [networkState, setNetworkState] = useNetworkStateStore(state => [
-    state,
-    state.setNetworkState,
-  ]);
+  const networkState = useNetworkStateStore(
+    useShallow(state => ({
+      mac_address: state.mac_address,
+      ipv4: state.ipv4,
+      ipv4_addresses: state.ipv4_addresses,
+      ipv6: state.ipv6,
+      ipv6_addresses: state.ipv6_addresses,
+      ipv6_link_local: state.ipv6_link_local,
+      dhcp_lease: state.dhcp_lease,
+      interface_name: state.interface_name,
+    })),
+  );
+  const setNetworkState = useNetworkStateStore(state => state.setNetworkState);
 
   const [networkSettings, setNetworkSettings] =
     useState<NetworkSettings>(defaultNetworkSettings);
@@ -502,7 +518,6 @@ export default function SettingsNetwork() {
               title={$at("Time synchronization")}
               description={$at("Configure time synchronization settings")}
               className={`${isMobile ? "w-full flex-col" : ""}`}
-
             >
               <Select
                 className={isMobile ? "!w-full !h-[36px]" : "!w-[28%] !h-[36px]"}
@@ -512,29 +527,19 @@ export default function SettingsNetwork() {
                 }}
                 options={filterUnknown([
                   { value: "unknown", label: "..." },
-                  // { value: "auto", label: "Auto" },
                   { value: "ntp_only", label: "NTP only" },
                   { value: "ntp_and_http", label: "NTP and HTTP" },
                   { value: "http_only", label: "HTTP only" },
-                  // { value: "custom", label: "Custom" },
-                ])}/>
-              {/*<SelectMenuBasic*/}
-              {/*  size="SM"*/}
-              {/*  value={networkSettings.time_sync_mode}*/}
-              {/*  className={`${isMobile ? "w-full" : ""}`}*/}
-              {/*  onChange={e => {*/}
-              {/*    handleTimeSyncModeChange(e.target.value);*/}
-              {/*  }}*/}
-              {/*  options={filterUnknown([*/}
-              {/*    { value: "unknown", label: "..." },*/}
-              {/*    // { value: "auto", label: "Auto" },*/}
-              {/*    { value: "ntp_only", label: "NTP only" },*/}
-              {/*    { value: "ntp_and_http", label: "NTP and HTTP" },*/}
-              {/*    { value: "http_only", label: "HTTP only" },*/}
-              {/*    // { value: "custom", label: "Custom" },*/}
-              {/*  ])}*/}
-              {/*/>*/}
+                  { value: "custom", label: "Custom" },
+                ])}
+              />
             </SettingsItem>
+            {networkSettings.time_sync_mode === "custom" && (
+              <CustomTimeConfigurationCard
+                settings={networkSettings}
+                onChange={updated => setNetworkSettings(prev => ({ ...prev, ...updated }))}
+              />
+            )}
           </div>
 
           <AntdButton

@@ -870,7 +870,9 @@ export interface NetworkState {
   ipv6_addresses?: IPv6Address[];
   ipv6_link_local?: string;
   dhcp_lease?: DhcpLease;
+}
 
+interface NetworkStateStore extends NetworkState {
   setNetworkState: (state: NetworkState) => void;
   setDhcpLease: (lease: NetworkState["dhcp_lease"]) => void;
   setDhcpLeaseExpiry: (expiry: Date) => void;
@@ -912,10 +914,16 @@ export interface NetworkSettings {
   lldp_tx_tlvs: string[];
   mdns_mode: mDNSMode;
   time_sync_mode: TimeSyncMode;
+  // Custom NTP configuration fields (used when time_sync_mode === "custom")
+  time_sync_ordering: string[];
+  time_sync_parallel: number;
+  time_sync_disable_fallback: boolean;
+  time_sync_ntp_servers: string[];
+  time_sync_http_urls: string[];
   pending_reboot?: boolean;
 }
 
-export const useNetworkStateStore = create<NetworkState>((set, get) => ({
+export const useNetworkStateStore = create<NetworkStateStore>((set, get) => ({
   setNetworkState: (state: NetworkState) => set(state),
   setDhcpLease: (lease: NetworkState["dhcp_lease"]) => set({ dhcp_lease: lease }),
   setDhcpLeaseExpiry: (expiry: Date) => {
@@ -925,8 +933,7 @@ export const useNetworkStateStore = create<NetworkState>((set, get) => ({
       return;
     }
 
-    lease.lease_expiry = expiry;
-    set({ dhcp_lease: lease });
+    set({ dhcp_lease: { ...lease, lease_expiry: expiry } });
   },
 }));
 
@@ -934,6 +941,7 @@ export interface KeySequenceStep {
   keys: string[];
   modifiers: string[];
   delay: number;
+  text?: string;
 }
 
 export interface KeySequence {
