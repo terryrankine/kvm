@@ -120,6 +120,10 @@ func initSystemInfo() {
 }
 
 func rpcKeyboardReport(modifier byte, keys []byte) error {
+	// USB HID boot-protocol keyboard supports at most 6 simultaneous keys.
+	if len(keys) > 6 {
+		return fmt.Errorf("keyboard report exceeds 6-key limit: %d keys", len(keys))
+	}
 	return gadget.KeyboardReport(modifier, keys)
 }
 
@@ -128,6 +132,18 @@ func rpcKeypressReport(key byte, press bool) error {
 }
 
 func rpcAbsMouseReport(x int, y int, buttons uint8) error {
+	// HID absolute coordinates are 0–32767; clamp rather than error so minor
+	// floating-point rounding at the UI layer is invisible to the user.
+	if x < 0 {
+		x = 0
+	} else if x > 32767 {
+		x = 32767
+	}
+	if y < 0 {
+		y = 0
+	} else if y > 32767 {
+		y = 32767
+	}
 	return gadget.AbsMouseReport(x, y, buttons)
 }
 

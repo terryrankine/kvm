@@ -16,4 +16,4 @@ Clamp or reject out-of-range values before writing to the gadget device. Add tes
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — `usb.go`: `rpcAbsMouseReport` clamps x/y to [0,32767] before passing to gadget. `rpcKeyboardReport` rejects key slices longer than 6 (USB HID boot-protocol limit). Relative mouse and wheel already use int8/int8 which are range-constrained by the Go type system.
