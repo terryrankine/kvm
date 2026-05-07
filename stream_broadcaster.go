@@ -57,3 +57,22 @@ func (b *VideoBroadcaster) Broadcast(data []byte) {
 		}
 	}
 }
+
+// BroadcastFrom sends src to all subscribers, copying it exactly once.
+// Unlike Broadcast it skips the allocation entirely when there are no subscribers —
+// the common case when only a WebRTC session is active.
+func (b *VideoBroadcaster) BroadcastFrom(src []byte) {
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+	if len(b.subscribers) == 0 {
+		return
+	}
+	buf := make([]byte, len(src))
+	copy(buf, src)
+	for _, ch := range b.subscribers {
+		select {
+		case ch <- buf:
+		default:
+		}
+	}
+}

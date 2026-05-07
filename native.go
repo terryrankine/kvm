@@ -263,10 +263,8 @@ func handleVideoClient(conn net.Conn) {
 		sinceLastFrame := now.Sub(lastFrame)
 		lastFrame = now
 
-		// Broadcast to HTTP clients
-		dataCopy := make([]byte, n)
-		copy(dataCopy, inboundPacket[:n])
-		videoBroadcaster.Broadcast(dataCopy)
+		// Broadcast to HTTP clients — BroadcastFrom skips allocation when no subscribers.
+		videoBroadcaster.BroadcastFrom(inboundPacket[:n])
 
 		if sess := getSession(); sess != nil {
 			err := sess.VideoTrack.WriteSample(media.Sample{Data: inboundPacket[:n], Duration: sinceLastFrame})
