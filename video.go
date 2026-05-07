@@ -2,6 +2,7 @@ package kvm
 
 import (
 	"encoding/json"
+	"sync"
 )
 
 // max frame size for 1080p video, specified in mpp venc setting
@@ -28,12 +29,17 @@ type VideoInputState struct {
 }
 
 var lastVideoState VideoInputState
+var lastVideoStateMu sync.RWMutex
 
 func triggerVideoStateUpdate() {
+	lastVideoStateMu.RLock()
+	snapshot := lastVideoState
+	lastVideoStateMu.RUnlock()
 	go func() {
-		writeJSONRPCEvent("videoInputState", lastVideoState, getSession())
+		writeJSONRPCEvent("videoInputState", snapshot, getSession())
 	}()
 }
+
 func HandleVideoStateMessage(event CtrlResponse) {
 	videoState := VideoInputState{}
 	err := json.Unmarshal(event.Data, &videoState)
@@ -41,12 +47,16 @@ func HandleVideoStateMessage(event CtrlResponse) {
 		logger.Warn().Err(err).Msg("Error parsing video state json")
 		return
 	}
+	lastVideoStateMu.Lock()
 	lastVideoState = videoState
+	lastVideoStateMu.Unlock()
 	triggerVideoStateUpdate()
 	requestDisplayUpdate(true)
 }
 
 func rpcGetVideoState() (VideoInputState, error) {
+	lastVideoStateMu.RLock()
+	defer lastVideoStateMu.RUnlock()
 	return lastVideoState, nil
 }
 
