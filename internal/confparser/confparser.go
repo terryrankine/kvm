@@ -389,6 +389,12 @@ func (f *FieldConfig) validateScalarValue(val string) error {
 			if _, err := net.ParseMAC(val); err != nil {
 				return fmt.Errorf("field `%s` is not a valid MAC address: %s", f.Name, val)
 			}
+		case "hostname_or_ipv4_or_ipv6":
+			if net.ParseIP(val) == nil {
+				if _, err := idna.Lookup.ToASCII(val); err != nil {
+					return fmt.Errorf("field `%s` is not a valid hostname, IPv4 or IPv6 address: %s", f.Name, val)
+				}
+			}
 		case "hostname":
 			if _, err := idna.Lookup.ToASCII(val); err != nil {
 				return fmt.Errorf("field `%s` is not a valid hostname: %s", f.Name, val)
