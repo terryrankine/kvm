@@ -16,4 +16,4 @@ Validate the `Origin` header against the device hostname and `localhost`. Reject
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — Replaced `InsecureSkipVerify: true` with `OriginPatterns: []string{c.Request.Host}` in `web.go` `handleLocalWebRTCSignal`. Only same-origin connections (matching the server's Host header) are now accepted; cross-origin requests from other sites are rejected.
