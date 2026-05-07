@@ -16,4 +16,4 @@ Log write errors at WARN level, increment a counter, and trigger peer connection
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED — `native.go` and `audio.go` both log `WriteSample`/`AudioTrack.Write` errors at WARN level with `scopedLogger.Warn().Err(err)`. No silent drops. No code change required.

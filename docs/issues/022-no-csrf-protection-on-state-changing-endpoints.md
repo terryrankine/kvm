@@ -16,4 +16,4 @@ Require a `X-Requested-With: XMLHttpRequest` header (simple CSRF barrier) or imp
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — Added `c.SetSameSite(http.SameSiteStrictMode)` before every `SetCookie("authToken", ...)` in `web.go`. `SameSite=Strict` prevents the browser from sending the auth cookie on any cross-site request (navigation, form POST, fetch), blocking CSRF attacks without requiring a token. WebSocket upgrade is also origin-checked (issue #010).

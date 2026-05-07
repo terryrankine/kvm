@@ -532,6 +532,7 @@ func handleLogin(c *gin.Context) {
 	config.LocalAuthToken = uuid.New().String()
 
 	// Set the cookie (Session cookie, expires on browser close)
+	c.SetSameSite(http.SameSiteStrictMode)
 	c.SetCookie("authToken", config.LocalAuthToken, 0, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
@@ -545,6 +546,7 @@ func handleLogout(c *gin.Context) {
 	}
 
 	// Clear the auth cookie
+	c.SetSameSite(http.SameSiteStrictMode)
 	c.SetCookie("authToken", "", -1, "/", "", false, true)
 	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
@@ -754,6 +756,7 @@ func handleCreatePassword(c *gin.Context) {
 	}
 
 	// Set the cookie (Session cookie, expires on browser close)
+	c.SetSameSite(http.SameSiteStrictMode)
 	c.SetCookie("authToken", config.LocalAuthToken, 0, "/", "", false, true)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Password set successfully"})
@@ -797,6 +800,7 @@ func handleUpdatePassword(c *gin.Context) {
 	}
 
 	// Set the cookie (Session cookie, expires on browser close)
+	c.SetSameSite(http.SameSiteStrictMode)
 	c.SetCookie("authToken", config.LocalAuthToken, 0, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
@@ -833,6 +837,7 @@ func handleDeletePassword(c *gin.Context) {
 		return
 	}
 
+	c.SetSameSite(http.SameSiteStrictMode)
 	c.SetCookie("authToken", "", -1, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password disabled successfully"})
@@ -898,6 +903,7 @@ func handleSetup(c *gin.Context) {
 		config.LocalAuthToken = uuid.New().String()
 
 		// Set the cookie (Session cookie, expires on browser close)
+		c.SetSameSite(http.SameSiteStrictMode)
 		c.SetCookie("authToken", config.LocalAuthToken, 0, "/", "", false, true)
 	} else {
 		// For noPassword mode, ensure the password field is empty
