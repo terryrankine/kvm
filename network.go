@@ -65,11 +65,12 @@ func initNetwork() error {
 		OnDhcpLeaseChange: func(lease *udhcpc.Lease, state *network.NetworkInterfaceState) {
 			networkStateChanged(state.IsOnline())
 
-			if currentSession == nil {
+			sess := getSession()
+			if sess == nil {
 				return
 			}
 
-			writeJSONRPCEvent("networkState", networkState.RpcGetNetworkState(), currentSession)
+			writeJSONRPCEvent("networkState", networkState.RpcGetNetworkState(), sess)
 		},
 		OnConfigChange: func(networkConfig *network.NetworkConfig) {
 			config.NetworkConfig = networkConfig

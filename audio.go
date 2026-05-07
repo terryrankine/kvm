@@ -134,7 +134,7 @@ func handleAudioClient(conn net.Conn) {
 			return
 		}
 
-		if currentSession != nil {
+		if sess := getSession(); sess != nil {
 			if err := packet.Unmarshal(inboundPacket[:n]); err != nil {
 				audioLogger.Warn().Err(err).Msg("error unmarshalling audio socket packet")
 				continue
@@ -148,7 +148,7 @@ func handleAudioClient(conn net.Conn) {
 				continue
 			}
 
-			if _, err := currentSession.AudioTrack.Write(buf); err != nil {
+			if _, err := sess.AudioTrack.Write(buf); err != nil {
 				audioLogger.Warn().Err(err).Msg("error writing sample")
 			}
 		}

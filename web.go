@@ -231,6 +231,19 @@ func setupRouter(isSecureServer bool) *gin.Engine {
 }
 
 var currentSession *Session
+var currentSessionMu sync.RWMutex
+
+func getSession() *Session {
+	currentSessionMu.RLock()
+	defer currentSessionMu.RUnlock()
+	return currentSession
+}
+
+func setSession(s *Session) {
+	currentSessionMu.Lock()
+	defer currentSessionMu.Unlock()
+	currentSession = s
+}
 
 var (
 	currentHTTPSessionID    string
@@ -260,9 +273,9 @@ func handleWebRTCSession(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-	if currentSession != nil {
-		writeJSONRPCEvent("otherSessionConnected", nil, currentSession)
-		peerConn := currentSession.peerConnection
+	if prev := getSession(); prev != nil {
+		writeJSONRPCEvent("otherSessionConnected", nil, prev)
+		peerConn := prev.peerConnection
 		go func() {
 			time.Sleep(1 * time.Second)
 			_ = peerConn.Close()
@@ -272,7 +285,7 @@ func handleWebRTCSession(c *gin.Context) {
 	// Cancel any ongoing keyboard macro when session changes
 	cancelKeyboardMacro()
 
-	currentSession = session
+	setSession(session)
 	c.JSON(http.StatusOK, gin.H{"sd": sd})
 }
 
@@ -470,13 +483,14 @@ func handleWebRTCSignalWsMessages(
 
 			l.Info().Str("data", fmt.Sprintf("%v", candidate)).Msg("unmarshalled incoming ICE candidate")
 
-			if currentSession == nil {
+			sess := getSession()
+			if sess == nil {
 				l.Warn().Msg("no current session, skipping incoming ICE candidate")
 				continue
 			}
 
 			l.Info().Str("data", fmt.Sprintf("%v", candidate)).Msg("adding incoming ICE candidate to current session")
-			if err = currentSession.peerConnection.AddICECandidate(candidate); err != nil {
+			if err = sess.peerConnection.AddICECandidate(candidate); err != nil {
 				l.Warn().Str("error", err.Error()).Msg("failed to add incoming ICE candidate to our peer connection")
 			}
 		}

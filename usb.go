@@ -42,20 +42,20 @@ func initUsbGadget() {
 	}()
 
 	gadget.SetOnKeyboardStateChange(func(state usbgadget.KeyboardState) {
-		if currentSession != nil {
-			currentSession.reportHidRPCKeyboardLedState(state)
+		if sess := getSession(); sess != nil {
+			sess.reportHidRPCKeyboardLedState(state)
 		}
 	})
 
 	gadget.SetOnKeysDownChange(func(state usbgadget.KeysDownState) {
-		if currentSession != nil {
-			currentSession.enqueueKeysDownState(state)
+		if sess := getSession(); sess != nil {
+			sess.enqueueKeysDownState(state)
 		}
 	})
 
 	gadget.SetOnKeepAliveReset(func() {
-		if currentSession != nil {
-			currentSession.resetKeepAliveTime()
+		if sess := getSession(); sess != nil {
+			sess.resetKeepAliveTime()
 		}
 	})
 
@@ -66,11 +66,11 @@ func initUsbGadget() {
 			Err(err).
 			Msg("HID device missing, sending notification to client")
 
-		if currentSession != nil {
+		if sess := getSession(); sess != nil {
 			writeJSONRPCEvent("hidDeviceMissing", map[string]interface{}{
 				"device": device,
 				"error":  err.Error(),
-			}, currentSession)
+			}, sess)
 		}
 
 		go func() {
@@ -155,11 +155,12 @@ func rpcGetUSBState() (state string) {
 
 func triggerUSBStateUpdate() {
 	go func() {
-		if currentSession == nil {
+		sess := getSession()
+		if sess == nil {
 			usbLogger.Info().Msg("No active RPC session, skipping USB state update")
 			return
 		}
-		writeJSONRPCEvent("usbState", usbState, currentSession)
+		writeJSONRPCEvent("usbState", usbState, sess)
 	}()
 }
 
@@ -224,8 +225,8 @@ func rpcReinitializeUsbGadget() error {
 
 	// Reapply callbacks
 	gadget.SetOnKeyboardStateChange(func(state usbgadget.KeyboardState) {
-		if currentSession != nil {
-			writeJSONRPCEvent("keyboardLedState", state, currentSession)
+		if sess := getSession(); sess != nil {
+			writeJSONRPCEvent("keyboardLedState", state, sess)
 		}
 	})
 	gadget.SetOnHidDeviceMissing(func(device string, err error) {
@@ -234,11 +235,11 @@ func rpcReinitializeUsbGadget() error {
 			Err(err).
 			Msg("HID device missing, sending notification to client")
 
-		if currentSession != nil {
+		if sess := getSession(); sess != nil {
 			writeJSONRPCEvent("hidDeviceMissing", map[string]interface{}{
 				"device": device,
 				"error":  err.Error(),
-			}, currentSession)
+			}, sess)
 		}
 
 		go func() {

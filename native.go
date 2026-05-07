@@ -268,8 +268,8 @@ func handleVideoClient(conn net.Conn) {
 		copy(dataCopy, inboundPacket[:n])
 		videoBroadcaster.Broadcast(dataCopy)
 
-		if currentSession != nil {
-			err := currentSession.VideoTrack.WriteSample(media.Sample{Data: inboundPacket[:n], Duration: sinceLastFrame})
+		if sess := getSession(); sess != nil {
+			err := sess.VideoTrack.WriteSample(media.Sample{Data: inboundPacket[:n], Duration: sinceLastFrame})
 			if err != nil {
 				scopedLogger.Warn().Err(err).Msg("error writing sample")
 			}

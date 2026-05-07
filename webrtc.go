@@ -348,10 +348,10 @@ func newSession(sessionConfig SessionConfig) (*Session, error) {
 		}
 		if connectionState == webrtc.ICEConnectionStateClosed {
 			scopedLogger.Debug().Msg("ICE Connection State is closed, unmounting virtual media")
-			if session == currentSession {
+			if session == getSession() {
 				// Cancel any ongoing keyboard report multi when session closes
 				cancelKeyboardMacro()
-				currentSession = nil
+				setSession(nil)
 			}
 			// Stop RPC processor
 			if session.rpcQueue != nil {

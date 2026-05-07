@@ -16,4 +16,4 @@ Replace bare global with a `sync.RWMutex`-protected accessor pair `getSession()`
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — Added `currentSessionMu sync.RWMutex` and `getSession()`/`setSession()` accessors in `web.go`. All direct reads replaced with `getSession()` and writes with `setSession()` across `web.go`, `native.go`, `audio.go`, `cloud.go`, `jsonrpc.go`, `network.go`, `ota.go`, `usb.go`, `video.go`, `webrtc.go`.

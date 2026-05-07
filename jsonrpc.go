@@ -1439,8 +1439,8 @@ func rpcExecuteKeyboardMacro(macro []hidrpc.KeyboardMacroStep) error {
 		IsPaste: true,
 	}
 
-	if currentSession != nil {
-		currentSession.reportHidRPCKeyboardMacroState(s)
+	if sess := getSession(); sess != nil {
+		sess.reportHidRPCKeyboardMacroState(s)
 	}
 
 	err := rpcDoExecuteKeyboardMacro(ctx, macro)
@@ -1448,8 +1448,8 @@ func rpcExecuteKeyboardMacro(macro []hidrpc.KeyboardMacroStep) error {
 	setKeyboardMacroCancel(nil)
 
 	s.State = false
-	if currentSession != nil {
-		currentSession.reportHidRPCKeyboardMacroState(s)
+	if sess := getSession(); sess != nil {
+		sess.reportHidRPCKeyboardMacroState(s)
 	}
 
 	return err

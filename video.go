@@ -31,7 +31,7 @@ var lastVideoState VideoInputState
 
 func triggerVideoStateUpdate() {
 	go func() {
-		writeJSONRPCEvent("videoInputState", lastVideoState, currentSession)
+		writeJSONRPCEvent("videoInputState", lastVideoState, getSession())
 	}()
 }
 func HandleVideoStateMessage(event CtrlResponse) {
