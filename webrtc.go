@@ -38,6 +38,9 @@ type Session struct {
 	hidQueueLock             sync.Mutex
 	hidQueue                 []chan hidQueueMessage
 
+	// queueMu guards keysDownStateQueue and hidQueue closure so senders
+	// cannot panic on a send-to-closed-channel race with ICE close.
+	queueMu            sync.RWMutex
 	keysDownStateQueue chan usbgadget.KeysDownState
 }
 
@@ -125,12 +128,17 @@ func (s *Session) handleKeysDownStateQueue() {
 }
 
 func (s *Session) enqueueKeysDownState(state usbgadget.KeysDownState) {
-	if s == nil || s.keysDownStateQueue == nil {
+	if s == nil {
 		return
 	}
-
+	s.queueMu.RLock()
+	ch := s.keysDownStateQueue
+	s.queueMu.RUnlock()
+	if ch == nil {
+		return
+	}
 	select {
-	case s.keysDownStateQueue <- state:
+	case ch <- state:
 	default:
 		hidRPCLogger.Warn().Msg("dropping keys down state update; queue full")
 	}
@@ -164,7 +172,12 @@ func getOnHidMessageHandler(session *Session, scopedLogger *zerolog.Logger, chan
 			queueIndex = 3
 		}
 
-		queue := session.hidQueue[queueIndex]
+		session.queueMu.RLock()
+		var queue chan hidQueueMessage
+		if queueIndex < len(session.hidQueue) {
+			queue = session.hidQueue[queueIndex]
+		}
+		session.queueMu.RUnlock()
 		if queue != nil {
 			queue <- hidQueueMessage{
 				DataChannelMessage: msg,
@@ -362,14 +375,22 @@ func newSession(sessionConfig SessionConfig) (*Session, error) {
 				session.rpcQueue = nil
 			}
 
-			// Stop HID RPC processor
+			// Stop HID RPC processor and keysDown queue under queueMu so
+			// concurrent senders see nil before we close, preventing panics.
+			session.queueMu.Lock()
 			for i := 0; i < len(session.hidQueue); i++ {
-				close(session.hidQueue[i])
+				ch := session.hidQueue[i]
 				session.hidQueue[i] = nil
+				if ch != nil {
+					close(ch)
+				}
 			}
-
-			close(session.keysDownStateQueue)
+			kdsQ := session.keysDownStateQueue
 			session.keysDownStateQueue = nil
+			session.queueMu.Unlock()
+			if kdsQ != nil {
+				close(kdsQ)
+			}
 
 			if session.shouldUmountVirtualMedia {
 				if err := rpcUnmountImage(); err != nil {
