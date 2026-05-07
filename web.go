@@ -233,6 +233,26 @@ func setupRouter(isSecureServer bool) *gin.Engine {
 var currentSession *Session
 var currentSessionMu sync.RWMutex
 
+// authTokenMu protects config.LocalAuthToken which is read on every
+// request by protectedMiddleware and written on login/logout/password change.
+var authTokenMu sync.RWMutex
+
+func getAuthToken() string {
+	authTokenMu.RLock()
+	defer authTokenMu.RUnlock()
+	return config.LocalAuthToken
+}
+
+// setAuthToken updates config.LocalAuthToken under both authTokenMu and
+// configLock so that a concurrent SaveConfig cannot serialize a stale token.
+func setAuthToken(tok string) {
+	configLock.Lock()
+	authTokenMu.Lock()
+	config.LocalAuthToken = tok
+	authTokenMu.Unlock()
+	configLock.Unlock()
+}
+
 func getSession() *Session {
 	currentSessionMu.RLock()
 	defer currentSessionMu.RUnlock()
@@ -529,17 +549,18 @@ func handleLogin(c *gin.Context) {
 
 	RecordSuccess(ip)
 
-	config.LocalAuthToken = uuid.New().String()
+	tok := uuid.New().String()
+	setAuthToken(tok)
 
 	// Set the cookie (Session cookie, expires on browser close)
 	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("authToken", config.LocalAuthToken, 0, "/", "", false, true)
+	c.SetCookie("authToken", tok, 0, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
 }
 
 func handleLogout(c *gin.Context) {
-	config.LocalAuthToken = ""
+	setAuthToken("")
 	if err := SaveConfig(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save configuration"})
 		return
@@ -559,7 +580,7 @@ func protectedMiddleware() gin.HandlerFunc {
 		}
 
 		authToken, err := c.Cookie("authToken")
-		if err != nil || authToken != config.LocalAuthToken || authToken == "" {
+		if err != nil || authToken != getAuthToken() || authToken == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
@@ -587,7 +608,7 @@ func metricsAuthMiddleware() gin.HandlerFunc {
 
 		// Try cookie auth first (browser access)
 		authToken, err := c.Cookie("authToken")
-		if err == nil && authToken == config.LocalAuthToken && authToken != "" {
+		if err == nil && authToken == getAuthToken() && authToken != "" {
 			c.Next()
 			return
 		}
@@ -748,7 +769,7 @@ func handleCreatePassword(c *gin.Context) {
 	}
 
 	config.HashedPassword = string(hashedPassword)
-	config.LocalAuthToken = uuid.New().String()
+	setAuthToken(uuid.New().String())
 	config.LocalAuthMode = "password"
 	if err := SaveConfig(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save configuration"})
@@ -757,7 +778,7 @@ func handleCreatePassword(c *gin.Context) {
 
 	// Set the cookie (Session cookie, expires on browser close)
 	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("authToken", config.LocalAuthToken, 0, "/", "", false, true)
+	c.SetCookie("authToken", getAuthToken(), 0, "/", "", false, true)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Password set successfully"})
 }
@@ -793,7 +814,7 @@ func handleUpdatePassword(c *gin.Context) {
 	}
 
 	config.HashedPassword = string(hashedPassword)
-	config.LocalAuthToken = uuid.New().String()
+	setAuthToken(uuid.New().String())
 	if err := SaveConfig(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save configuration"})
 		return
@@ -801,7 +822,7 @@ func handleUpdatePassword(c *gin.Context) {
 
 	// Set the cookie (Session cookie, expires on browser close)
 	c.SetSameSite(http.SameSiteStrictMode)
-	c.SetCookie("authToken", config.LocalAuthToken, 0, "/", "", false, true)
+	c.SetCookie("authToken", getAuthToken(), 0, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password updated successfully"})
 }
@@ -830,7 +851,7 @@ func handleDeletePassword(c *gin.Context) {
 
 	// Disable password
 	config.HashedPassword = ""
-	config.LocalAuthToken = ""
+	setAuthToken("")
 	config.LocalAuthMode = "noPassword"
 	if err := SaveConfig(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save configuration"})
@@ -900,15 +921,16 @@ func handleSetup(c *gin.Context) {
 		}
 
 		config.HashedPassword = string(hashedPassword)
-		config.LocalAuthToken = uuid.New().String()
+		tok := uuid.New().String()
+		setAuthToken(tok)
 
 		// Set the cookie (Session cookie, expires on browser close)
 		c.SetSameSite(http.SameSiteStrictMode)
-		c.SetCookie("authToken", config.LocalAuthToken, 0, "/", "", false, true)
+		c.SetCookie("authToken", tok, 0, "/", "", false, true)
 	} else {
 		// For noPassword mode, ensure the password field is empty
 		config.HashedPassword = ""
-		config.LocalAuthToken = ""
+		setAuthToken("")
 	}
 
 	err := SaveConfig()
