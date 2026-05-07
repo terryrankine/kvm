@@ -58,6 +58,7 @@ interface MacroStep {
   keys: string[];
   modifiers: string[];
   delay: number;
+  text?: string;
 }
 
 interface MacroStepCardProps {
@@ -71,6 +72,8 @@ interface MacroStepCardProps {
   keyQuery: string;
   onModifierChange: (modifiers: string[]) => void;
   onDelayChange: (delay: number) => void;
+  onTextChange: (text: string) => void;
+  onStepTypeChange: (type: "keys" | "text") => void;
   isLastStep: boolean;
 }
 
@@ -89,9 +92,13 @@ export function MacroStepCard({
   keyQuery,
   onModifierChange,
   onDelayChange,
+  onTextChange,
+  onStepTypeChange,
   isLastStep
 }: MacroStepCardProps) {
   const { $at }= useReactAt();
+
+  const isTextMode = step.text !== undefined;
 
   const getFilteredKeys = () => {
     const selectedKeys = ensureArray(step.keys);
@@ -143,85 +150,131 @@ export function MacroStepCard({
         </div>
       </div>
 
-      <div className="space-y-4 mt-2">
-        <div className="w-full flex flex-col gap-2">
-          <FieldLabel label={$at("Modifiers")} />
-          <div className="inline-flex flex-wrap gap-3">
-            {Object.entries(groupedModifiers).map(([group, mods]) => (
-              <div key={group} className="relative min-w-[120px] rounded-md border border-slate-200 dark:border-slate-700 p-2">
-                <span className="absolute -top-2.5 left-2 px-1 text-xs font-medium bg-white dark:bg-slate-800 text-slate-500 dark:text-[#ffffff]">
-                  {group}
-                </span>
-                <div className="flex flex-wrap gap-4 pt-1">
-                  {mods.map(option => (
-                    <Button
-                      key={option.value}
-                      size="XS"
-                      theme={ensureArray(step.modifiers).includes(option.value) ? "primary" : "light"}
-                      text={option.label.split(' ')[1] || option.label}
-                      onClick={() => {
-                        const modifiersArray = ensureArray(step.modifiers);
-                        const isSelected = modifiersArray.includes(option.value);
-                        const newModifiers = isSelected
-                          ? modifiersArray.filter(m => m !== option.value)
-                          : [...modifiersArray, option.value];
-                        onModifierChange(newModifiers);
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Step Type Toggle */}
+      <div className="mb-4">
+        <FieldLabel
+          label={$at("Step Type")}
+          description={$at("Choose whether this step sends key presses or types text.")}
+        />
+        <div className="mt-1.5 flex gap-2">
+          <Button
+            size="XS"
+            theme={!isTextMode ? "primary" : "light"}
+            text={$at("Keys")}
+            onClick={() => onStepTypeChange("keys")}
+          />
+          <Button
+            size="XS"
+            theme={isTextMode ? "primary" : "light"}
+            text={$at("Type Text")}
+            onClick={() => onStepTypeChange("text")}
+          />
         </div>
-        
-        <div className="w-full flex flex-col gap-1">
-          <div className="flex items-center gap-1">
-            <FieldLabel label={$at("Keys")} description={`${$at("Maximum")} ${MAX_KEYS_PER_STEP} ${$at("keys per step.")}`} />
-          </div>
-          {ensureArray(step.keys) && step.keys.length > 0 && (
-            <div className="flex flex-wrap gap-1 pb-2">
-              {step.keys.map((key, keyIndex) => (
-                <span
-                  key={keyIndex}
-                  className="inline-flex items-center py-0.5 rounded-md bg-blue-100 px-1 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
-                >
-                  <span className="px-1">
-                    {keyDisplayMap[key] || key}
-                  </span>
-                  <Button
-                    size="XS"
-                    className=""
-                    theme="blank"
-                    onClick={() => {
-                      const newKeys = ensureArray(step.keys).filter((_, i) => i !== keyIndex);
-                      onKeySelect({ value: null, keys: newKeys });
-                    }}
-                    LeadingIcon={LuX}
-                  />
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="relative w-full">
-            <Combobox
-              onChange={(value: { value: string; label: string }) => {
-                onKeySelect(value);
-                onKeyQueryChange('');
-              }}
-              displayValue={() => keyQuery}
-              onInputChange={onKeyQueryChange}
-              options={getFilteredKeys}
-              disabledMessage={$at("Max keys reached")}
-              size="SM"
-              immediate
-              disabled={ensureArray(step.keys).length >= MAX_KEYS_PER_STEP}
-              placeholder={ensureArray(step.keys).length >= MAX_KEYS_PER_STEP ? $at("Max keys reached") : $at("Search for key...")}
-              emptyMessage={$at("No matching keys found")}
+      </div>
+
+      <div className="space-y-4 mt-2">
+        {isTextMode ? (
+          /* Type Text Mode */
+          <div className="w-full flex flex-col gap-1">
+            <FieldLabel
+              label={$at("Text to Type")}
+              description={$at("Text to type on the remote machine. Each character will be sent as individual keystrokes.")}
+            />
+            <textarea
+              className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-400"
+              rows={3}
+              placeholder={$at("Enter text to type...")}
+              value={step.text || ""}
+              onChange={e => onTextChange(e.target.value)}
+              onKeyDown={e => e.stopPropagation()}
+              onKeyUp={e => e.stopPropagation()}
+              onKeyDownCapture={e => e.stopPropagation()}
+              onKeyUpCapture={e => e.stopPropagation()}
             />
           </div>
-        </div>
-        
+        ) : (
+          /* Keys Mode */
+          <>
+            <div className="w-full flex flex-col gap-2">
+              <FieldLabel label={$at("Modifiers")} />
+              <div className="inline-flex flex-wrap gap-3">
+                {Object.entries(groupedModifiers).map(([group, mods]) => (
+                  <div key={group} className="relative min-w-[120px] rounded-md border border-slate-200 dark:border-slate-700 p-2">
+                    <span className="absolute -top-2.5 left-2 px-1 text-xs font-medium bg-white dark:bg-slate-800 text-slate-500 dark:text-[#ffffff]">
+                      {group}
+                    </span>
+                    <div className="flex flex-wrap gap-4 pt-1">
+                      {mods.map(option => (
+                        <Button
+                          key={option.value}
+                          size="XS"
+                          theme={ensureArray(step.modifiers).includes(option.value) ? "primary" : "light"}
+                          text={option.label.split(' ')[1] || option.label}
+                          onClick={() => {
+                            const modifiersArray = ensureArray(step.modifiers);
+                            const isSelected = modifiersArray.includes(option.value);
+                            const newModifiers = isSelected
+                              ? modifiersArray.filter(m => m !== option.value)
+                              : [...modifiersArray, option.value];
+                            onModifierChange(newModifiers);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="w-full flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <FieldLabel label={$at("Keys")} description={`${$at("Maximum")} ${MAX_KEYS_PER_STEP} ${$at("keys per step.")}`} />
+              </div>
+              {ensureArray(step.keys) && step.keys.length > 0 && (
+                <div className="flex flex-wrap gap-1 pb-2">
+                  {step.keys.map((key, keyIndex) => (
+                    <span
+                      key={keyIndex}
+                      className="inline-flex items-center py-0.5 rounded-md bg-blue-100 px-1 text-xs font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
+                    >
+                      <span className="px-1">
+                        {keyDisplayMap[key] || key}
+                      </span>
+                      <Button
+                        size="XS"
+                        className=""
+                        theme="blank"
+                        onClick={() => {
+                          const newKeys = ensureArray(step.keys).filter((_, i) => i !== keyIndex);
+                          onKeySelect({ value: null, keys: newKeys });
+                        }}
+                        LeadingIcon={LuX}
+                      />
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="relative w-full">
+                <Combobox
+                  onChange={(value: { value: string; label: string }) => {
+                    onKeySelect(value);
+                    onKeyQueryChange('');
+                  }}
+                  displayValue={() => keyQuery}
+                  onInputChange={onKeyQueryChange}
+                  options={getFilteredKeys}
+                  disabledMessage={$at("Max keys reached")}
+                  size="SM"
+                  immediate
+                  disabled={ensureArray(step.keys).length >= MAX_KEYS_PER_STEP}
+                  placeholder={ensureArray(step.keys).length >= MAX_KEYS_PER_STEP ? $at("Max keys reached") : $at("Search for key...")}
+                  emptyMessage={$at("No matching keys found")}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
         <div className="w-full flex flex-col gap-1">
           <div className="flex items-center gap-1">
             <FieldLabel label={$at("Step Duration")} description={$at("Time to wait before executing the next step.")} />

@@ -4,12 +4,62 @@ import notifications from "@/notifications";
 import { useHidStore, useRTCStore, useSettingsStore } from "@/hooks/stores";
 import { useJsonRpc } from "@/hooks/useJsonRpc";
 import { keys, modifiers } from "@/keyboardMappings";
+import { chars } from "@/keyboardLayouts";
+
+export type MacroStep = { keys: string[] | null; modifiers: string[] | null; delay: number };
+
+/**
+ * Converts a text string into a sequence of key-press steps using the given keyboard layout.
+ * Mirrors the paste-text logic in usePasteHandler so macros can type freeform text.
+ */
+export function textToMacroSteps(text: string, layoutKey: string, delay: number): MacroStep[] {
+  const normalizedLayout = (layoutKey || "").replace("-", "_");
+  const safeLayout = normalizedLayout && chars[normalizedLayout] ? normalizedLayout : "en_US";
+  const layoutChars = chars[safeLayout];
+  const steps: MacroStep[] = [];
+
+  for (const char of text) {
+    const normalizedChar = char.normalize("NFC");
+    const keyprops = layoutChars[normalizedChar];
+    if (!keyprops) continue;
+
+    const { key, shift, altRight, deadKey, accentKey } = keyprops;
+    if (!key) continue;
+
+    if (accentKey) {
+      const accentMods: string[] = [];
+      if (accentKey.shift) accentMods.push("ShiftLeft");
+      if (accentKey.altRight) accentMods.push("AltRight");
+      steps.push({
+        keys: [String(accentKey.key)],
+        modifiers: accentMods.length > 0 ? accentMods : null,
+        delay,
+      });
+    }
+
+    const charMods: string[] = [];
+    if (shift) charMods.push("ShiftLeft");
+    if (altRight) charMods.push("AltRight");
+    steps.push({
+      keys: [String(key)],
+      modifiers: charMods.length > 0 ? charMods : null,
+      delay,
+    });
+
+    if (deadKey) {
+      steps.push({ keys: ["Space"], modifiers: null, delay });
+    }
+  }
+
+  return steps;
+}
 
 export default function useKeyboard() {
   const [send] = useJsonRpc();
 
   const rpcDataChannel = useRTCStore(state => state.rpcDataChannel);
   const forceHttp = useSettingsStore(state => state.forceHttp);
+  const keyboardLayout = useSettingsStore(state => state.keyboardLayout);
   const updateActiveKeysAndModifiers = useHidStore(
     state => state.updateActiveKeysAndModifiers,
   );
@@ -43,8 +93,18 @@ export default function useKeyboard() {
     sendKeyboardEvent([], []);
   }, [sendKeyboardEvent]);
 
-  const executeMacro = async (steps: { keys: string[] | null; modifiers: string[] | null; delay: number }[]) => {
-    for (const [index, step] of steps.entries()) {
+  const executeMacro = async (steps: { keys: string[] | null; modifiers: string[] | null; delay: number; text?: string }[]) => {
+    // Expand any "Type Text" steps into individual key-press steps
+    const expandedSteps: { keys: string[] | null; modifiers: string[] | null; delay: number }[] = [];
+    for (const step of steps) {
+      if (step.text !== undefined && step.text.length > 0) {
+        expandedSteps.push(...textToMacroSteps(step.text, keyboardLayout, step.delay));
+      } else {
+        expandedSteps.push(step);
+      }
+    }
+
+    for (const [index, step] of expandedSteps.entries()) {
       const keyValues = step.keys?.map(key => keys[key]).filter(Boolean) || [];
       const modifierValues = step.modifiers?.map(mod => modifiers[mod]).filter(Boolean) || [];
 
@@ -60,7 +120,7 @@ export default function useKeyboard() {
       }
 
       // Add a small pause between steps if not the last step
-      if (index < steps.length - 1) {
+      if (index < expandedSteps.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
     }

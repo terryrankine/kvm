@@ -64,13 +64,16 @@ export function MacroForm({
     if (!macro.steps?.length) {
       newErrors.steps = { 0: { keys: "At least one step is required" } };
     } else {
-      const hasKeyOrModifier = macro.steps.some(
-        step => (step.keys?.length || 0) > 0 || (step.modifiers?.length || 0) > 0,
+      const hasContent = macro.steps.some(
+        step =>
+          (step.keys?.length || 0) > 0 ||
+          (step.modifiers?.length || 0) > 0 ||
+          (step.text !== undefined && step.text.length > 0),
       );
 
-      if (!hasKeyOrModifier) {
+      if (!hasContent) {
         newErrors.steps = {
-          0: { keys: "At least one step must have keys or modifiers" },
+          0: { keys: "At least one step must have keys, modifiers, or text" },
         };
       }
     }
@@ -162,6 +165,42 @@ export function MacroForm({
     setMacro({ ...macro, steps: newSteps });
   };
 
+  const handleTextChange = (stepIndex: number, text: string) => {
+    const newSteps = [...(macro.steps || [])];
+    newSteps[stepIndex].text = text;
+    setMacro({ ...macro, steps: newSteps });
+
+    // Clear step errors when text is entered
+    if (errors.steps?.[stepIndex]?.keys && text.length > 0) {
+      const newErrors = { ...errors };
+      delete newErrors.steps?.[stepIndex].keys;
+      if (Object.keys(newErrors.steps?.[stepIndex] || {}).length === 0) {
+        delete newErrors.steps?.[stepIndex];
+      }
+      if (Object.keys(newErrors.steps || {}).length === 0) {
+        delete newErrors.steps;
+      }
+      setErrors(newErrors);
+    }
+  };
+
+  const handleStepTypeChange = (stepIndex: number, type: "keys" | "text") => {
+    const newSteps = [...(macro.steps || [])];
+    if (type === "text") {
+      newSteps[stepIndex] = {
+        keys: [],
+        modifiers: [],
+        delay: newSteps[stepIndex].delay,
+        text: newSteps[stepIndex].text ?? "",
+      };
+    } else {
+      // Remove text field when switching back to keys mode
+      const { text: _text, ...rest } = newSteps[stepIndex];
+      newSteps[stepIndex] = rest;
+    }
+    setMacro({ ...macro, steps: newSteps });
+  };
+
   const handleStepMove = (stepIndex: number, direction: "up" | "down") => {
     const newSteps = [...(macro.steps || [])];
     const newIndex = direction === "up" ? stepIndex - 1 : stepIndex + 1;
@@ -236,6 +275,8 @@ export function MacroForm({
                     handleModifierChange(stepIndex, modifiers)
                   }
                   onDelayChange={delay => handleDelayChange(stepIndex, delay)}
+                  onTextChange={text => handleTextChange(stepIndex, text)}
+                  onStepTypeChange={type => handleStepTypeChange(stepIndex, type)}
                   isLastStep={stepIndex === (macro.steps?.length || 0) - 1}
                 />
               ))}
