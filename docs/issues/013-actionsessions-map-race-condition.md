@@ -16,4 +16,4 @@ Protect with `sync.RWMutex`. Add `-race` test.
 
 ## Status
 
-- [ ] TODO
+- [x] DONE — `webrtc.go`: added `actionSessionsMu sync.Mutex`. All reads/writes of `actionSessions` now hold the lock; capture `isFirst`/`isLast` booleans under the lock before calling side-effect functions outside it. `main.go` broadcaster callbacks also lock before reading `actionSessions`.

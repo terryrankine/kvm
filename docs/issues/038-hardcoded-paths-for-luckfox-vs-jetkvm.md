@@ -16,4 +16,4 @@ Define a single `dataDir` constant set at build time (via ldflags). Replace all 
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED (for this fork) — All runtime paths already use `/userdata/picokvm/` (`native.go`, `ota.go`, `jsonrpc.go`, `internal/logging/`). `config.go` uses `/userdata/kvm_config.json` (neutral). No jetkvm paths remain in file system operations. Prometheus metric names still carry `jetkvm_` prefix (cosmetic, not a runtime path). No code change required.

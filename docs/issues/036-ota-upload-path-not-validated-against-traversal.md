@@ -16,4 +16,4 @@ Use `filepath.Base()` on the uploaded filename and join it to a fixed base direc
 
 ## Status
 
-- [ ] TODO
+- [x] ALREADY FIXED — `ota_offline.go` `extractOfflineArchive()` uses `filepath.Base(filepath.Clean(header.Name))` then checks `strings.Contains(name, "..")` and `filepath.IsAbs(name)`. Combined with a `maxFiles` limit, path traversal is prevented. No code change required.

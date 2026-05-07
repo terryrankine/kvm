@@ -333,10 +333,13 @@ func newSession(sessionConfig SessionConfig) (*Session, error) {
 		if connectionState == webrtc.ICEConnectionStateConnected {
 			if !isConnected {
 				isConnected = true
+				actionSessionsMu.Lock()
 				actionSessions++
+				isFirst := actionSessions == 1
+				actionSessionsMu.Unlock()
 				onActiveSessionsChanged()
 				setNpuAppStatus()
-				if actionSessions == 1 {
+				if isFirst {
 					onFirstSessionConnected()
 				}
 			}
@@ -375,9 +378,12 @@ func newSession(sessionConfig SessionConfig) (*Session, error) {
 			}
 			if isConnected {
 				isConnected = false
+				actionSessionsMu.Lock()
 				actionSessions--
+				isLast := actionSessions == 0
+				actionSessionsMu.Unlock()
 				onActiveSessionsChanged()
-				if actionSessions == 0 {
+				if isLast {
 					onLastSessionDisconnected()
 				}
 			}
@@ -387,6 +393,7 @@ func newSession(sessionConfig SessionConfig) (*Session, error) {
 }
 
 var actionSessions = 0
+var actionSessionsMu sync.Mutex
 
 func onActiveSessionsChanged() {
 	requestDisplayUpdate(true)
