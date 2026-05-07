@@ -25,8 +25,6 @@ export const useMouseEvents = (
   const [blockWheelEvent, setBlockWheelEvent] = useState(false);
   const mouseMode = useSettingsStore(s => s.mouseMode);
   const scrollThrottling = useSettingsStore(s => s.scrollThrottling);
-  // Wrap in a stable object so callers referencing `settings.mouseMode` still work.
-  const settings = { mouseMode, scrollThrottling };
   const setMousePosition = useMouseStore(s => s.setMousePosition);
   const setMouseMove = useMouseStore(s => s.setMouseMove);
   const videoWidth = useVideoStore(s => s.width);
@@ -85,22 +83,22 @@ export const useMouseEvents = (
 
   const sendRelMouseMovement = useCallback(
     (x: number, y: number, buttons: number) => {
-      if (settings.mouseMode !== "relative") return;
+      if (mouseMode !== "relative") return;
       if (isReinitializingGadget) return;
       send("relMouseReport", { dx: calcDelta(x), dy: calcDelta(y), buttons });
       setMouseMove({ x, y, buttons });
     },
-    [send, setMouseMove, settings.mouseMode, isReinitializingGadget],
+    [send, setMouseMove, mouseMode, isReinitializingGadget],
   );
 
   const sendAbsMouseMovement = useCallback(
     (x: number, y: number, buttons: number) => {
-      if (settings.mouseMode !== "absolute") return;
+      if (mouseMode !== "absolute") return;
       if (isReinitializingGadget) return;
       send("absMouseReport", { x, y, buttons });
       setMousePosition(x, y);
     },
-    [send, setMousePosition, settings.mouseMode, isReinitializingGadget],
+    [send, setMousePosition, mouseMode, isReinitializingGadget],
   );
 
   const relMouseMoveHandler = useCallback(
@@ -115,18 +113,18 @@ export const useMouseEvents = (
         }
       }
       if (isMobile) e.preventDefault();
-      if (settings.mouseMode !== "relative") return;
+      if (mouseMode !== "relative") return;
       if (!pointerLock.isPointerLockActive && pointerLock.isPointerLockPossible) return;
 
       sendRelMouseMovement(e.movementX, e.movementY, e.buttons);
     },
-    [pointerLock.isPointerLockActive, pointerLock.isPointerLockPossible, sendRelMouseMovement, settings.mouseMode, touchZoom],
+    [pointerLock.isPointerLockActive, pointerLock.isPointerLockPossible, sendRelMouseMovement, mouseMode, touchZoom],
   );
 
   const absMouseMoveHandler = useCallback(
     (e: MouseEvent) => {
       if (!coordMapper) return;
-      if (settings.mouseMode !== "absolute") return;
+      if (mouseMode !== "absolute") return;
 
       const pt = (e as unknown as PointerEvent).pointerType as unknown as string;
       if (pt === "touch") {
@@ -175,13 +173,13 @@ export const useMouseEvents = (
         sendAbsMouseMovement(x, y, externalButtons);
       }
     },
-    [coordMapper, settings.mouseMode, sendAbsMouseMovement, touchZoom, disableTouchClick, externalButtons],
+    [coordMapper, mouseMode, sendAbsMouseMovement, touchZoom, disableTouchClick, externalButtons],
   );
 
   const mouseWheelHandler = useCallback(
     (e: WheelEvent) => {
       if (isReinitializingGadget) return;
-      if (settings.scrollThrottling && blockWheelEvent) return;
+      if (scrollThrottling && blockWheelEvent) return;
 
       const isAccel = Math.abs(e.deltaY) >= 100;
       const scrollValue = isAccel ? e.deltaY / 100 : Math.sign(e.deltaY);
@@ -189,19 +187,19 @@ export const useMouseEvents = (
 
       send("wheelReport", { wheelY: invertedScrollValue });
 
-      if (settings.scrollThrottling && !blockWheelEvent) {
+      if (scrollThrottling && !blockWheelEvent) {
         setBlockWheelEvent(true);
-        setTimeout(() => setBlockWheelEvent(false), settings.scrollThrottling);
+        setTimeout(() => setBlockWheelEvent(false), scrollThrottling);
       }
     },
-    [send, blockWheelEvent, settings, isReinitializingGadget],
+    [send, blockWheelEvent, scrollThrottling, isReinitializingGadget],
   );
 
   const resetMousePosition = useCallback(() => {
     sendAbsMouseMovement(0, 0, 0);
   }, [sendAbsMouseMovement]);
 
-  const isRelativeMouseMode = (settings.mouseMode === "relative");
+  const isRelativeMouseMode = (mouseMode === "relative");
   const mouseMoveHandler = isRelativeMouseMode ? relMouseMoveHandler : absMouseMoveHandler;
   const handlerRef = useRef(mouseMoveHandler);
 
@@ -247,7 +245,7 @@ export const useMouseEvents = (
     return () => abortController.abort();
   }, [
     videoElm,
-    settings.mouseMode,
+    mouseMode,
     isRelativeMouseMode,
     mouseWheelHandler,
     pointerLock,
