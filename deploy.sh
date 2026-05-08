@@ -8,7 +8,7 @@ BINARY="bin/kvm_app"
 REMOTE_PATH="/userdata/picokvm/bin/kvm_app"
 
 echo "Building..."
-make build_release
+make build_dev
 
 echo "Uploading..."
 $SCP "$BINARY" "$HOST:/tmp/kvm_app_new"
