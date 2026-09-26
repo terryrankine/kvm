@@ -80,8 +80,6 @@ func setupRouter() *gin.Engine {
 	))
 	staticFS, _ := fs.Sub(staticFiles, "static")
 
-	r.Any("/debug/pprof/*any", gin.WrapH(http.DefaultServeMux))
-
 	// Add a custom middleware to set cache headers for images
 	// This is crucial for optimizing the initial welcome screen load time
 	// By enabling caching, we ensure that pre-loaded images are stored in the browser cache
