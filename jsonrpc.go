@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -943,15 +944,37 @@ func rpcGetUsbConfig() (usbgadget.Config, error) {
 // out of its quoted line in umtprd.conf (writeUmtprdConfFile writes
 // Manufacturer/Product/SerialNumber unescaped between double quotes) and
 // inject an additional directive, such as another `storage` line exposing
-// an arbitrary host path over MTP.
+// an arbitrary host path over MTP. NUL is rejected too: Go strings can carry
+// one, and if umtprd's config reader uses NUL-terminated string handling on
+// its C side, the field would silently truncate there and any attacker
+// bytes after it could be reinterpreted as trailing config content.
 func validateUmtprdConfField(name, value string) error {
-	if strings.ContainsAny(value, "\r\n\"") {
-		return fmt.Errorf("%s must not contain quotes or newlines", name)
+	if strings.ContainsAny(value, "\r\n\"\x00") {
+		return fmt.Errorf("%s must not contain quotes, newlines, or NUL bytes", name)
 	}
 	return nil
 }
 
-func rpcSetUsbConfig(usbConfig usbgadget.Config) error {
+var usbHexIDPattern = regexp.MustCompile(`^(0x)?[0-9a-fA-F]{1,4}$`)
+
+// validateUsbHexID checks VendorId/ProductId, which writeUmtprdConfFile
+// writes into umtprd.conf with NO surrounding quotes at all (usb_vendor_id
+// %s / usb_product_id %s) — any character at all, not just a quote, would
+// let a value break onto a new config line, so these are allowlisted to the
+// hex USB ID format instead of blacklisted.
+func validateUsbHexID(name, value string) error {
+	if !usbHexIDPattern.MatchString(value) {
+		return fmt.Errorf("%s must be a 1-4 digit hex value, optionally prefixed with 0x", name)
+	}
+	return nil
+}
+
+// validateUsbConfig is the single choke point for validating
+// usbgadget.Config fields that end up written into umtprd.conf. It must be
+// called on every path that can set config.UsbConfig, not just
+// rpcSetUsbConfig — rpcSetConfigRaw replaces the whole config wholesale and
+// would otherwise bypass it entirely.
+func validateUsbConfig(usbConfig usbgadget.Config) error {
 	if err := validateUmtprdConfField("manufacturer", usbConfig.Manufacturer); err != nil {
 		return err
 	}
@@ -959,6 +982,19 @@ func rpcSetUsbConfig(usbConfig usbgadget.Config) error {
 		return err
 	}
 	if err := validateUmtprdConfField("serial number", usbConfig.SerialNumber); err != nil {
+		return err
+	}
+	if err := validateUsbHexID("vendor id", usbConfig.VendorId); err != nil {
+		return err
+	}
+	if err := validateUsbHexID("product id", usbConfig.ProductId); err != nil {
+		return err
+	}
+	return nil
+}
+
+func rpcSetUsbConfig(usbConfig usbgadget.Config) error {
+	if err := validateUsbConfig(usbConfig); err != nil {
 		return err
 	}
 
@@ -1011,6 +1047,12 @@ func rpcSetConfigRaw(configStr string) error {
 	var newConfig Config
 	if err := json.Unmarshal([]byte(configStr), &newConfig); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	if newConfig.UsbConfig != nil {
+		if err := validateUsbConfig(*newConfig.UsbConfig); err != nil {
+			return fmt.Errorf("invalid usbConfig: %w", err)
+		}
 	}
 
 	configLock.Lock()
