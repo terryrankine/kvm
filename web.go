@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -859,7 +860,30 @@ func handleSetup(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Device setup completed successfully"})
 }
 
+// isSameOriginOrNoOrigin guards against cross-site requests riding on the
+// cookie-only auth used by protectedMiddleware. Browsers send an Origin
+// header on cross-origin requests (and increasingly on same-origin POSTs
+// too); a mismatch means the request didn't come from this device's own UI.
+// A missing Origin header is allowed through, since non-browser clients
+// (curl, scripts) legitimately omit it and aren't subject to CSRF.
+func isSameOriginOrNoOrigin(c *gin.Context) bool {
+	origin := c.GetHeader("Origin")
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return u.Host == c.Request.Host
+}
+
 func handleRpcRequest(c *gin.Context) {
+	if !isSameOriginOrNoOrigin(c) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Cross-origin request rejected"})
+		return
+	}
+
 	var req JSONRPCRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON RPC request"})
