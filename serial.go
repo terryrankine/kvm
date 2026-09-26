@@ -110,8 +110,12 @@ func handleSerialWS(c *gin.Context) {
 	// InsecureSkipVerify is left off so the library enforces its default
 	// same-origin check (Origin header must match Request.Host), which
 	// blocks a cross-site page from opening this WebSocket even if a
-	// browser attaches the auth cookie to the handshake.
-	wsCon, err := websocket.Accept(c.Writer, c.Request, nil)
+	// browser attaches the auth cookie to the handshake. OriginPatterns
+	// additionally trusts config.AllowedOriginHosts (empty by default; see
+	// config.go) for deployments fronted by a reverse proxy or NAT rewrite.
+	wsCon, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
+		OriginPatterns: config.AllowedOriginHosts,
+	})
 	if err != nil {
 		c.Status(500)
 		return

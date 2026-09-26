@@ -109,6 +109,12 @@ type Config struct {
 	DisplayDimAfterSec         int                    `json:"display_dim_after_sec"`
 	DisplayOffAfterSec         int                    `json:"display_off_after_sec"`
 	TLSMode                    string                 `json:"tls_mode"` // options: "self-signed", "user-defined", ""
+	// AllowedOriginHosts lists extra hosts (host[:port], coder/websocket
+	// pattern syntax) trusted as same-origin by the CSRF check in web.go and
+	// the WebSocket origin checks in serial.go/terminal.go. Empty by default:
+	// this device is not deployed behind a reverse proxy or NAT host rewrite,
+	// so only the request's own Host is trusted. Set this if that changes.
+	AllowedOriginHosts         []string               `json:"allowed_origin_hosts"`
 	UsbConfig                  *usbgadget.Config      `json:"usb_config"`
 	UsbDevices                 *usbgadget.Devices     `json:"usb_devices"`
 	NetworkConfig              *network.NetworkConfig `json:"network_config"`

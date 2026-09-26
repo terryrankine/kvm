@@ -35,6 +35,17 @@ import (
 //go:embed all:static
 var staticFiles embed.FS
 
+// The net/http/pprof import above registers its handlers on the process-
+// global http.DefaultServeMux as an import side effect, independent of the
+// gin route removed from this router. Nothing in this codebase serves
+// DefaultServeMux directly today (mcp.go's http.ListenAndServe always gets
+// an explicit handler), but replacing it here removes the sole live
+// exposure a future http.ListenAndServe(addr, nil) could accidentally
+// create. Runs once at package init, before any server goroutine starts.
+func init() {
+	http.DefaultServeMux = http.NewServeMux()
+}
+
 type WebRTCSessionRequest struct {
 	Sd         string   `json:"sd"`
 	OidcGoogle string   `json:"OidcGoogle,omitempty"`
@@ -870,13 +881,29 @@ func handleSetup(c *gin.Context) {
 // through, since non-browser clients (curl, scripts) legitimately omit it
 // and aren't subject to CSRF. Host comparison is case-insensitive to match
 // coder/websocket's own origin check, which the WebSocket routes in this
-// same group rely on (see terminal.go/serial.go).
+// same group rely on (see terminal.go/serial.go). config.AllowedOriginHosts
+// additionally trusts hosts named there (empty by default; see config.go) —
+// this device isn't deployed behind a reverse proxy or NAT host rewrite, so
+// there's nothing to add out of the box, but an operator who does put one in
+// front of it can list its external host here instead of losing this check.
+func isTrustedOriginHost(host string) bool {
+	if strings.EqualFold(host, "") {
+		return false
+	}
+	for _, allowed := range config.AllowedOriginHosts {
+		if strings.EqualFold(host, allowed) {
+			return true
+		}
+	}
+	return false
+}
+
 func rejectCrossOriginMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		if origin != "" {
 			u, err := url.Parse(origin)
-			if err != nil || !strings.EqualFold(u.Host, c.Request.Host) {
+			if err != nil || (!strings.EqualFold(u.Host, c.Request.Host) && !isTrustedOriginHost(u.Host)) {
 				c.JSON(http.StatusForbidden, gin.H{"error": "Cross-origin request rejected"})
 				c.Abort()
 				return
