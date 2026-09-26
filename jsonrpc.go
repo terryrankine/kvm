@@ -939,7 +939,29 @@ func rpcGetUsbConfig() (usbgadget.Config, error) {
 	return *config.UsbConfig, nil
 }
 
+// validateUmtprdConfField rejects characters that would let a value break
+// out of its quoted line in umtprd.conf (writeUmtprdConfFile writes
+// Manufacturer/Product/SerialNumber unescaped between double quotes) and
+// inject an additional directive, such as another `storage` line exposing
+// an arbitrary host path over MTP.
+func validateUmtprdConfField(name, value string) error {
+	if strings.ContainsAny(value, "\r\n\"") {
+		return fmt.Errorf("%s must not contain quotes or newlines", name)
+	}
+	return nil
+}
+
 func rpcSetUsbConfig(usbConfig usbgadget.Config) error {
+	if err := validateUmtprdConfField("manufacturer", usbConfig.Manufacturer); err != nil {
+		return err
+	}
+	if err := validateUmtprdConfField("product", usbConfig.Product); err != nil {
+		return err
+	}
+	if err := validateUmtprdConfField("serial number", usbConfig.SerialNumber); err != nil {
+		return err
+	}
+
 	LoadConfig()
 	config.UsbConfig = &usbConfig
 	gadget.SetGadgetConfig(config.UsbConfig)
