@@ -104,9 +104,11 @@ func handleTerminalWS(c *gin.Context) {
 		Str("source", source).
 		Logger()
 
-	wsCon, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
-		InsecureSkipVerify: true,
-	})
+	// InsecureSkipVerify is left off so the library enforces its default
+	// same-origin check (Origin header must match Request.Host), which
+	// blocks a cross-site page from opening this WebSocket even if a
+	// browser attaches the auth cookie to the handshake.
+	wsCon, err := websocket.Accept(c.Writer, c.Request, nil)
 	if err != nil {
 		c.Status(500)
 		return
